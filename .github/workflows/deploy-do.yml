@@ -1,0 +1,17 @@
+name: Deploy Digital Ocean
+run-name: ${{ github.actor }} is deploying Cal.com
+on: push
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      # need checkout before using compose-action
+      - uses: actions/checkout@v3
+      - uses: isbang/compose-action@v1.3.2
+        with:
+          compose-file: "./docker-compose.yml"
+          up-flags: "--build"
+      name: Install doctl
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
