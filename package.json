@@ -114,9 +114,9 @@
     ]
   },
   "engines": {
-    "node": ">=18.x",
-    "npm": ">=7.0.0",
-    "yarn": ">=1.19.0 < 2.0.0"
+    "node": "18",
+    "yarn": "3.4.1",
+    "npm": ">=7.0.0"
   },
   "prisma": {
     "schema": "packages/prisma/schema.prisma",

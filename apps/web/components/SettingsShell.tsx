@@ -3,7 +3,7 @@ import React from "react";
 
 import Shell from "@calcom/features/shell/Shell";
 import { ErrorBoundary } from "@calcom/ui";
-import { FiKey, FiLock, FiTerminal, FiUser } from "@calcom/ui/components/icon";
+import { FiKey, FiLock, FiUser } from "@calcom/ui/components/icon";
 
 import NavTabs from "./NavTabs";
 
@@ -23,11 +23,11 @@ const tabs = [
     href: "/settings/security",
     icon: FiKey,
   },
-  {
-    name: "developer",
-    href: "/settings/developer",
-    icon: FiTerminal,
-  },
+  // {
+  //   name: "developer",
+  //   href: "/settings/developer",
+  //   icon: FiTerminal,
+  // },
   // {
   //   name: "billing",
   //   href: "/settings/billing",

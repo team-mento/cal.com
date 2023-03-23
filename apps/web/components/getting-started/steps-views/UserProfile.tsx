@@ -168,7 +168,7 @@ const UserProfile = (props: IUserProfileProps) => {
         <Editor
           getText={() => md.render(getValues("bio") || user?.bio || "")}
           setText={(value: string) => setValue("bio", turndown(value))}
-          excludedToolbarItems={["blockType"]}
+          excludedToolbarItems={["blockType", "bold", "italic", "link"]}
         />
         <p className="mt-2 font-sans text-sm font-normal text-gray-600 dark:text-white">
           {t("few_sentences_about_yourself")}

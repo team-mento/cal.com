@@ -426,7 +426,7 @@ export const eventTypesRouter = router({
     const defaultConferencingData = userMetadataSchema.parse(ctx.user.metadata)?.defaultConferencingApp;
     const appKeys = await getAppKeysFromSlug("daily-video");
 
-    let locations: { type: string; link?: string }[] = [];
+    let locations: { type: string; link?: string }[] = rest.locations || [];
 
     // If no locations are passed in and the user has a daily api key then default to daily
     if (
@@ -444,6 +444,8 @@ export const eventTypesRouter = router({
       locations = [{ type: locationType, link: defaultConferencingData.appLink }];
     }
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     const data: Prisma.EventTypeCreateInput = {
       ...rest,
       owner: teamId ? undefined : { connect: { id: userId } },

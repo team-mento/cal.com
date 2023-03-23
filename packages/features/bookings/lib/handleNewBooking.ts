@@ -179,6 +179,7 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
     },
     select: {
       id: true,
+      slug: true,
       customInputs: true,
       disableGuests: true,
       users: userSelect,
@@ -261,7 +262,7 @@ async function ensureAvailableUsers(
   eventType: Awaited<ReturnType<typeof getEventTypesFromDB>> & {
     users: IsFixedAwareUser[];
   },
-  input: { dateFrom: string; dateTo: string; timeZone: string },
+  input: { email: string; guests?: string[]; dateFrom: string; dateTo: string; timeZone: string },
   recurringDatesInfo?: {
     allRecurringDates: string[] | undefined;
     currentRecurringIndex: number | undefined;
@@ -308,10 +309,39 @@ async function ensureAvailableUsers(
         // running at the first unavailable time.
         let i = 0;
         while (!foundConflict && i < allBookingDates.length) {
-          foundConflict = checkForConflicts(bufferedBusyTimes, allBookingDates[i++], eventType.length);
+          const date = allBookingDates[i++];
+          const conflict = checkForConflicts(bufferedBusyTimes, date, eventType.length);
+
+          if (conflict) {
+            // CUSTOM_CODE Zapier single session
+            try {
+              await fetch(
+                `https://hooks.zapier.com/hooks/catch/8583043/bvz7pcb/silent?email=${
+                  input.email
+                }&coach=${eventType?.users?.map((u) => u.email)?.join(", ")}&event=${
+                  eventType?.eventName || ""
+                }&date=${date.toUTCString()}`
+              );
+            } catch (e) {}
+          }
+          foundConflict = conflict;
         }
       } else {
-        foundConflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
+        const conflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
+
+        if (conflict) {
+          // CUSTOM_CODE Zapier bi weekly
+          try {
+            await fetch(
+              `https://hooks.zapier.com/hooks/catch/8583043/bvzjov9/silent?email=${input.email}&coach=${
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                eventType?.users?.map((u) => u.email).join(", ")
+              }&event=${eventType?.eventName || ""}&date=${new Date(input.dateFrom)?.toUTCString()}`
+            );
+          } catch (e) {}
+        }
+        foundConflict = conflict;
       }
     } catch {
       log.debug({
@@ -321,10 +351,25 @@ async function ensureAvailableUsers(
     // no conflicts found, add to available users.
     if (!foundConflict) {
       availableUsers.push(user);
+
+      // CUSTOM_CODE Zapier call for Bi weekly start
+      if (eventType.slug === "bi-weekly-start-coaching-session") {
+        try {
+          await fetch(
+            `https://hooks.zapier.com/hooks/catch/8583043/bva7ac8/silent?email=${
+              input.email
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+            }&coach=${eventType?.users?.map((u) => u.email).join(", ")}&event=${
+              eventType?.eventName || ""
+            }&date=${new Date(input.dateFrom)?.toUTCString()}`
+          );
+        } catch (e) {}
+      }
     }
   }
   if (!availableUsers.length) {
-    throw new Error("No available users found.");
+    throw new Error("Please try again or contact concierge@mento.co for support.");
   }
   return availableUsers;
 }
@@ -649,6 +694,12 @@ async function handler(
         }),
       },
       {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        email: reqBody.email,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        guests: reqBody.guests,
         dateFrom: reqBody.start,
         dateTo: reqBody.end,
         timeZone: reqBody.timeZone,

@@ -29,7 +29,6 @@ import {
 } from "@calcom/features/bookings/lib/getBookingFields";
 import { parseRecurringEvent } from "@calcom/lib";
 import CustomBranding from "@calcom/lib/CustomBranding";
-import { APP_NAME } from "@calcom/lib/constants";
 import {
   formatToLocalizedDate,
   formatToLocalizedTime,
@@ -47,7 +46,7 @@ import prisma from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 import { customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import { Button, EmailInput, HeadSeo, Badge } from "@calcom/ui";
+import { HeadSeo, Badge } from "@calcom/ui";
 import { FiX, FiExternalLink, FiChevronLeft, FiCheck, FiCalendar } from "@calcom/ui/components/icon";
 
 import { timeZone } from "@lib/clock";
@@ -756,41 +755,41 @@ export default function Success(props: SuccessProps) {
                     </>
                   )}
 
-                {session === null && !(userIsOwner || props.hideBranding) && (
-                  <>
-                    <hr className="border-bookinglightest dark:border-darkgray-300 mt-8" />
-                    <div className="border-bookinglightest text-booking-lighter dark:border-darkgray-300 pt-8 text-center text-xs dark:text-white">
-                      <a href="https://cal.com/signup">
-                        {t("create_booking_link_with_calcom", { appName: APP_NAME })}
-                      </a>
+                {/*{session === null && !(userIsOwner || props.hideBranding) && (*/}
+                {/*  <>*/}
+                {/*    <hr className="border-bookinglightest dark:border-darkgray-300 mt-8" />*/}
+                {/*    <div className="border-bookinglightest text-booking-lighter dark:border-darkgray-300 pt-8 text-center text-xs dark:text-white">*/}
+                {/*      <a href="https://cal.com/signup">*/}
+                {/*        {t("create_booking_link_with_calcom", { appName: APP_NAME })}*/}
+                {/*      </a>*/}
 
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          const target = e.target as typeof e.target & {
-                            email: { value: string };
-                          };
-                          router.push(`https://cal.com/signup?email=${target.email.value}`);
-                        }}
-                        className="mt-4 flex">
-                        <EmailInput
-                          name="email"
-                          id="email"
-                          defaultValue={email}
-                          className="mr- focus:border-brand border-bookinglightest dark:border-darkgray-300 mt-0 block w-full rounded-none rounded-l-md border-gray-300 shadow-sm focus:ring-black dark:bg-black dark:text-white sm:text-sm"
-                          placeholder="rick.astley@cal.com"
-                        />
-                        <Button
-                          size="lg"
-                          type="submit"
-                          className="min-w-max rounded-none rounded-r-md"
-                          color="primary">
-                          {t("try_for_free")}
-                        </Button>
-                      </form>
-                    </div>
-                  </>
-                )}
+                {/*      <form*/}
+                {/*        onSubmit={(e) => {*/}
+                {/*          e.preventDefault();*/}
+                {/*          const target = e.target as typeof e.target & {*/}
+                {/*            email: { value: string };*/}
+                {/*          };*/}
+                {/*          router.push(`https://cal.com/signup?email=${target.email.value}`);*/}
+                {/*        }}*/}
+                {/*        className="mt-4 flex">*/}
+                {/*        <EmailInput*/}
+                {/*          name="email"*/}
+                {/*          id="email"*/}
+                {/*          defaultValue={email}*/}
+                {/*          className="mr- focus:border-brand border-bookinglightest dark:border-darkgray-300 mt-0 block w-full rounded-none rounded-l-md border-gray-300 shadow-sm focus:ring-black dark:bg-black dark:text-white sm:text-sm"*/}
+                {/*          placeholder="rick.astley@cal.com"*/}
+                {/*        />*/}
+                {/*        <Button*/}
+                {/*          size="lg"*/}
+                {/*          type="submit"*/}
+                {/*          className="min-w-max rounded-none rounded-r-md"*/}
+                {/*          color="primary">*/}
+                {/*          {t("try_for_free")}*/}
+                {/*        </Button>*/}
+                {/*      </form>*/}
+                {/*    </div>*/}
+                {/*  </>*/}
+                {/*)}*/}
               </div>
             </div>
           </div>
@@ -1018,6 +1017,7 @@ const handleSeatsEventTypeOnBooking = (
 export async function getServerSideProps(context: GetServerSidePropsContext) {
   const ssr = await ssrInit(context);
   const parsedQuery = schema.safeParse(context.query);
+
   if (!parsedQuery.success) return { notFound: true };
   const { uid, email, eventTypeSlug, cancel } = parsedQuery.data;
 
@@ -1072,6 +1072,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       },
     },
   });
+
   if (!bookingInfoRaw) {
     return {
       notFound: true,
@@ -1081,6 +1082,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const eventTypeRaw = !bookingInfoRaw.eventTypeId
     ? getDefaultEvent(eventTypeSlug || "")
     : await getEventTypesFromDB(bookingInfoRaw.eventTypeId);
+
   if (!eventTypeRaw) {
     return {
       notFound: true,

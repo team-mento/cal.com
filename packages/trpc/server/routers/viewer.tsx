@@ -712,7 +712,7 @@ const loggedInViewerRouter = router({
                 onboarded: updatedUser?.completedOnboarding,
                 username: updatedUser?.username,
                 name: updatedUser?.name,
-                bio: updatedUser?.bio,
+                bio: updatedUser?.bio?.replace(/\*\*/g, "")?.replace(/ _/g, " ")?.replace(/_ /g, " "),
                 avatar: updatedUser?.avatar,
               }),
             }

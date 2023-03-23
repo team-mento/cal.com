@@ -386,7 +386,7 @@ const ProfileForm = ({
           setText={(value: string) => {
             formMethods.setValue("bio", turndown(value), { shouldDirty: true });
           }}
-          excludedToolbarItems={["blockType"]}
+          excludedToolbarItems={["blockType", "bold", "italic", "link"]}
           disableLists
         />
       </div>

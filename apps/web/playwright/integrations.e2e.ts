@@ -15,7 +15,6 @@ declare let global: {
 
 const requestInterceptor = setupServer(
   rest.post("https://api.hubapi.com/oauth/v1/token", (req, res, ctx) => {
-    console.log(req.body);
     return res(ctx.status(200));
   })
 );
