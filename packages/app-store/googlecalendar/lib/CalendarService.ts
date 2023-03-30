@@ -99,8 +99,8 @@ export default class GoogleCalendarService implements Calendar {
           {
             ...calEventRaw.organizer,
             id: String(calEventRaw.organizer.id),
-            responseStatus: "accepted",
             organizer: true,
+            responseStatus: "accepted",
             email: calEventRaw.destinationCalendar?.externalId
               ? calEventRaw.destinationCalendar.externalId
               : calEventRaw.organizer.email,
@@ -111,7 +111,7 @@ export default class GoogleCalendarService implements Calendar {
         reminders: {
           useDefault: true,
         },
-        guestsCanSeeOtherGuests: !!calEventRaw.seatsPerTimeSlot ? calEventRaw.seatsShowAttendees : true,
+        guestsCanSeeOtherGuests: true,
       };
 
       if (calEventRaw.location) {
@@ -208,7 +208,7 @@ export default class GoogleCalendarService implements Calendar {
         reminders: {
           useDefault: true,
         },
-        guestsCanSeeOtherGuests: !!event.seatsPerTimeSlot ? event.seatsShowAttendees : true,
+        guestsCanSeeOtherGuests: true,
       };
 
       if (event.location) {
