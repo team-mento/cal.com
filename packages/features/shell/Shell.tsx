@@ -13,6 +13,7 @@ import UnconfirmedBookingBadge from "@calcom/features/bookings/UnconfirmedBookin
 import ImpersonatingBanner from "@calcom/features/ee/impersonation/components/ImpersonatingBanner";
 import HelpMenuItem from "@calcom/features/ee/support/components/HelpMenuItem";
 import { TeamsUpgradeBanner } from "@calcom/features/ee/teams/components";
+import { useFlagMap } from "@calcom/features/flags/context/provider";
 import { KBarContent, KBarRoot, KBarTrigger } from "@calcom/features/kbar/Kbar";
 import TimezoneChangeDialog from "@calcom/features/settings/TimezoneChangeDialog";
 import { Tips } from "@calcom/features/tips";
@@ -22,6 +23,7 @@ import classNames from "@calcom/lib/classNames";
 import { APP_NAME, WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
+import { isKeyInObject } from "@calcom/lib/isKeyInObject";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
@@ -29,31 +31,32 @@ import {
   Button,
   Credits,
   Dropdown,
+  DropdownItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownItem,
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   ErrorBoundary,
-  Logo,
   HeadSeo,
-  showToast,
+  Logo,
   SkeletonText,
+  showToast,
 } from "@calcom/ui";
 import {
-  FiMoreVertical,
-  FiExternalLink,
-  FiLink,
-  FiLogOut,
+  FiArrowLeft,
+  FiArrowRight,
+  FiBarChart,
   FiCalendar,
   FiClock,
-  FiGrid,
-  FiMoreHorizontal,
+  FiExternalLink,
   FiFileText,
+  FiGrid,
+  FiLink,
+  FiLogOut,
+  FiMoreHorizontal,
+  FiMoreVertical,
   FiSettings,
-  FiArrowRight,
-  FiArrowLeft,
 } from "@calcom/ui/components/icon";
 
 import FreshChatProvider from "../ee/support/lib/freshchat/FreshChatProvider";
@@ -536,6 +539,11 @@ const navigation: NavigationItemType[] = [
   //   icon: FiZap,
   // },
   {
+    name: "insights",
+    href: "/insights",
+    icon: FiBarChart,
+  },
+  {
     name: "settings",
     href: "/settings/my-account/profile",
     icon: FiSettings,
@@ -581,6 +589,8 @@ function useShouldDisplayNavigationItem(item: NavigationItemType) {
       trpc: {},
     }
   );
+  const flags = useFlagMap();
+  if (isKeyInObject(item.name, flags)) return flags[item.name];
   return !requiredCredentialNavigationItems.includes(item.name) || routingForms?.isInstalled;
 }
 

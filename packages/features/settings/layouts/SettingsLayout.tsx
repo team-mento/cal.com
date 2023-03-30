@@ -78,6 +78,7 @@ const tabs: VerticalTabItemProps[] = [
     href: "/settings/admin",
     icon: FiLock,
     children: [
+      { name: "features", href: "/settings/admin/flags" },
       // { name: "license", href: "/auth/setup?step=1" },
       { name: "impersonation", href: "/settings/admin/impersonation" },
       { name: "apps", href: "/settings/admin/apps/calendar" },

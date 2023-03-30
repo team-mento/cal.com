@@ -99,8 +99,8 @@ export default class GoogleCalendarService implements Calendar {
           {
             ...calEventRaw.organizer,
             id: String(calEventRaw.organizer.id),
-            organizer: true,
             responseStatus: "accepted",
+            organizer: true,
             email: calEventRaw.destinationCalendar?.externalId
               ? calEventRaw.destinationCalendar.externalId
               : calEventRaw.organizer.email,
@@ -133,6 +133,7 @@ export default class GoogleCalendarService implements Calendar {
           calendarId: selectedCalendar,
           requestBody: payload,
           conferenceDataVersion: 1,
+          sendUpdates: "none",
         },
         function (error, event) {
           if (error || !event?.data) {
@@ -241,7 +242,6 @@ export default class GoogleCalendarService implements Calendar {
         function (err, evt) {
           if (err) {
             console.error("There was an error contacting google calendar service: ", err);
-
             return reject(err);
           }
 
