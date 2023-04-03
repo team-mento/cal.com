@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useState } from "react";
 import { FormattedNumber, IntlProvider } from "react-intl";
 import { z } from "zod";
 
@@ -12,7 +12,6 @@ import {
   useEmbedStyles,
   useEmbedUiConfig,
   useIsBackgroundTransparent,
-  useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import CustomBranding from "@calcom/lib/CustomBranding";
 import classNames from "@calcom/lib/classNames";
@@ -24,7 +23,7 @@ import { getRecurringFreq } from "@calcom/lib/recurringStrings";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { detectBrowserTimeFormat, setIs24hClockInLocalStorage, TimeFormat } from "@calcom/lib/timeFormat";
 import { trpc } from "@calcom/trpc";
-import { HeadSeo } from "@calcom/ui";
+import { HeadSeo, Logo } from "@calcom/ui";
 import { FiCreditCard, FiUser, FiRefreshCcw } from "@calcom/ui/components/icon";
 
 import { timeZone as localStorageTimeZone } from "@lib/clock";
@@ -60,7 +59,7 @@ export type Props = AvailabilityTeamPageProps | AvailabilityPageProps | DynamicA
 
 const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
   const router = useRouter();
-  const isEmbed = useIsEmbed(restProps.isEmbed);
+  const isEmbed = false;
   const query = dateQuerySchema.parse(router.query);
   const { rescheduleUid } = query;
   useTheme(profile.theme);
@@ -158,13 +157,17 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
       />
       <BookingPageTagManager eventType={eventType} />
       <CustomBranding lightVal={profile.brandColor} darkVal={profile.darkBrandColor} />
+
       <div>
         <main
           className={classNames(
-            "my-24 flex flex-col md:mx-4",
+            "my-12 flex flex-col md:mx-4",
             shouldAlignCentrally ? "items-center" : "items-start",
             !isEmbed && classNames("mx-auto my-0 ease-in-out md:my-24")
           )}>
+          <div className="flex justify-center md:mb-4">
+            <Logo />
+          </div>
           <div>
             <div
               style={availabilityDatePickerEmbedStyles}
@@ -281,8 +284,6 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
                 />
               </div>
             </div>
-            {/* FIXME: We don't show branding in Embed yet because we need to place branding on top of the main content. Keeping it outside the main content would have visibility issues because outside main content background is transparent */}
-            {!restProps.isBrandingHidden && !isEmbed && <PoweredByCal />}
           </div>
         </main>
       </div>

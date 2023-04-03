@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useState } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
@@ -20,7 +20,6 @@ import {
   useEmbedNonStylesConfig,
   useEmbedUiConfig,
   useIsBackgroundTransparent,
-  useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import {
   getBookingFieldsWithSystemFields,
@@ -40,7 +39,7 @@ import { HttpError } from "@calcom/lib/http-error";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { TimeFormat } from "@calcom/lib/timeFormat";
-import { Button, Form, Tooltip } from "@calcom/ui";
+import { Button, Form, Logo, Tooltip } from "@calcom/ui";
 import { FiAlertTriangle, FiCalendar, FiRefreshCw, FiUser } from "@calcom/ui/components/icon";
 
 import { timeZone } from "@lib/clock";
@@ -215,7 +214,7 @@ const BookingPage = ({
 }: BookingPageProps) => {
   const { t, i18n } = useLocale();
   const { duration: queryDuration } = useRouterQuery("duration");
-  const isEmbed = useIsEmbed(restProps.isEmbed);
+  const isEmbed = false;
   const embedUiConfig = useEmbedUiConfig();
   const shouldAlignCentrallyInEmbed = useEmbedNonStylesConfig("align") !== "left";
   const shouldAlignCentrally = !isEmbed || shouldAlignCentrallyInEmbed;
@@ -513,12 +512,16 @@ const BookingPage = ({
       </Head>
       <BookingPageTagManager eventType={eventType} />
       <CustomBranding lightVal={profile.brandColor} darkVal={profile.darkBrandColor} />
+
       <main
         className={classNames(
-          shouldAlignCentrally ? "mx-auto" : "",
-          isEmbed ? "" : "sm:my-24",
-          "my-0 max-w-3xl"
+          "my-12 flex flex-col md:mx-4",
+          shouldAlignCentrally ? "items-center" : "items-start",
+          !isEmbed && classNames("mx-auto my-0 ease-in-out md:my-24")
         )}>
+        <div className="flex justify-center md:mb-4">
+          <Logo />
+        </div>
         <div
           className={classNames(
             "main",
