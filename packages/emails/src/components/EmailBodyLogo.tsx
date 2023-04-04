@@ -48,18 +48,18 @@ const EmailBodyLogo = () => {
                     <td style={{ width: "89px" }}>
                       <a href={WEBAPP_URL} target="_blank" rel="noreferrer">
                         <img
-                          height="19"
+                          height="45"
                           src={image}
                           style={{
                             border: "0",
                             display: "block",
                             outline: "none",
                             textDecoration: "none",
-                            height: "19px",
+                            height: "45px",
                             width: "100%",
                             fontSize: "13px",
                           }}
-                          width="89"
+                          width="150"
                           alt=""
                         />
                       </a>

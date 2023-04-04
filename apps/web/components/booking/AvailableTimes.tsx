@@ -147,7 +147,7 @@ const AvailableTimes: FC<AvailableTimesProps> = ({
                         href={bookingUrl}
                         prefetch={false}
                         className={classNames(
-                          "hover:bg-brand hover:border-brand hover:text-brandcontrast dark:hover:text-darkmodebrandcontrast",
+                          "hover:bg-sage-500 hover:border-sage-500 hover:text-brandcontrast dark:hover:text-darkmodebrandcontrast",
                           "dark:bg-darkgray-200 dark:hover:bg-darkmodebrand dark:hover:border-darkmodebrand dark:text-darkgray-800 mb-2 block rounded-md border bg-white py-2 text-sm font-medium dark:border-transparent",
                           brand === "#fff" || brand === "#ffffff" ? "" : ""
                         )}

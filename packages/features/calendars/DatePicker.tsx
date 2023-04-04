@@ -53,7 +53,7 @@ export const Day = ({
       className={classNames(
         "disabled:text-bookinglighter absolute top-0 left-0 right-0 bottom-0 mx-auto w-full rounded-md border-2 border-transparent text-center font-medium disabled:cursor-default disabled:border-transparent disabled:font-light disabled:dark:border-transparent",
         active
-          ? "dark:bg-darkmodebrand dark:hover:border-darkmodebrand dark:text-darkmodebrandcontrast bg-brand text-brandcontrast border-2"
+          ? "dark:bg-darkmodebrand dark:hover:border-darkmodebrand dark:text-darkmodebrandcontrast bg-sage-500 text-brandcontrast border-2"
           : !disabled
           ? "dark:bg-darkgray-200 hover:border-brand dark:hover:border-darkmodebrand bg-gray-100 dark:text-white"
           : ""
