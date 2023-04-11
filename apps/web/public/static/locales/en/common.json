@@ -1666,7 +1666,7 @@
   "app_is_connected": "{{dependencyName}} is connected",
   "requires_app": "Requires {{dependencyName}}",
   "verification_code": "Verification code",
-  "can_you_try_again": "Can you try again with a different time?",
+  "can_you_try_again": "Please try again or contact concierge@mento.co for support.",
   "verify": "Verify",
   "invalid_event_name_variables": "There is an invalid variable in your event name",
   "select_all": "Select All",
