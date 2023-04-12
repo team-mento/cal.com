@@ -1,7 +1,9 @@
 import { IdentityProvider } from "@prisma/client";
 import { z } from "zod";
 
-import { hashPassword, validPassword, verifyPassword } from "@calcom/lib/auth";
+import { hashPassword } from "@calcom/features/auth/lib/hashPassword";
+import { validPassword } from "@calcom/features/auth/lib/validPassword";
+import { verifyPassword } from "@calcom/features/auth/lib/verifyPassword";
 import prisma from "@calcom/prisma";
 
 import { TRPCError } from "@trpc/server";
@@ -42,15 +44,15 @@ export const authRouter = router({
 
       const passwordsMatch = await verifyPassword(oldPassword, currentPassword);
       if (!passwordsMatch) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "INCORRECT_PASSWORD" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "incorrect_password" });
       }
 
       if (oldPassword === newPassword) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "PASSWORD_MATCHES_OLD" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "new_password_matches_old_password" });
       }
 
       if (!validPassword(newPassword)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "INVALID_PASSWORD" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "password_hint_min" });
       }
 
       const hashedPassword = await hashPassword(newPassword);

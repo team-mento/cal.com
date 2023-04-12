@@ -1,4 +1,4 @@
-import { PrismaClient, WebhookTriggerEvents } from "@prisma/client";
+import type { PrismaClient, WebhookTriggerEvents } from "@prisma/client";
 
 import defaultPrisma from "@calcom/prisma";
 
@@ -13,7 +13,6 @@ const getWebhooks = async (options: GetSubscriberOptions, prisma: PrismaClient =
 
   const allWebhooks = await prisma.webhook.findMany({
     where: {
-      // We should only Allow Webhook on Mento Account, not per user
       // OR: [
       //   {
       //     userId,

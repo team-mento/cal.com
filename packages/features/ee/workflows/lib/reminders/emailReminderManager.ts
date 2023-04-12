@@ -1,10 +1,5 @@
-import {
-  TimeUnit,
-  WorkflowTriggerEvents,
-  WorkflowTemplates,
-  WorkflowActions,
-  WorkflowMethods,
-} from "@prisma/client";
+import type { TimeUnit } from "@prisma/client";
+import { WorkflowTriggerEvents, WorkflowTemplates, WorkflowActions, WorkflowMethods } from "@prisma/client";
 import client from "@sendgrid/client";
 import sgMail from "@sendgrid/mail";
 
@@ -12,8 +7,9 @@ import dayjs from "@calcom/dayjs";
 import prisma from "@calcom/prisma";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 
-import { BookingInfo, timeUnitLowerCase } from "./smsReminderManager";
-import customTemplate, { VariablesType } from "./templates/customTemplate";
+import type { BookingInfo, timeUnitLowerCase } from "./smsReminderManager";
+import type { VariablesType } from "./templates/customTemplate";
+import customTemplate from "./templates/customTemplate";
 import emailReminderTemplate from "./templates/emailReminderTemplate";
 
 let sendgridAPIKey, senderEmail: string;
@@ -104,17 +100,18 @@ export const scheduleEmailReminder = async (
         timeZone: timeZone,
         location: evt.location,
         additionalNotes: evt.additionalNotes,
-        customInputs: evt.customInputs,
+        responses: evt.responses,
         meetingUrl: bookingMetadataSchema.parse(evt.metadata || {})?.videoCallUrl,
       };
 
-      const emailSubjectTemplate = await customTemplate(
-        emailSubject,
-        variables,
-        evt.organizer.language.locale
-      );
+      const locale =
+        action === WorkflowActions.EMAIL_ATTENDEE || action === WorkflowActions.SMS_ATTENDEE
+          ? evt.attendees[0].language?.locale
+          : evt.organizer.language.locale;
+
+      const emailSubjectTemplate = await customTemplate(emailSubject, variables, locale);
       emailContent.emailSubject = emailSubjectTemplate.text;
-      emailContent.emailBody = await customTemplate(emailBody, variables, evt.organizer.language.locale);
+      emailContent.emailBody = await customTemplate(emailBody, variables, locale);
       break;
   }
 
@@ -193,14 +190,24 @@ export const scheduleEmailReminder = async (
   }
 };
 
-export const deleteScheduledEmailReminder = async (referenceId: string) => {
+export const deleteScheduledEmailReminder = async (reminderId: number, referenceId: string | null) => {
   try {
-    await client.request({
-      url: "/v3/user/scheduled_sends",
-      method: "POST",
-      body: {
-        batch_id: referenceId,
-        status: "cancel",
+    if (!referenceId) {
+      await prisma.workflowReminder.delete({
+        where: {
+          id: reminderId,
+        },
+      });
+
+      return;
+    }
+
+    await prisma.workflowReminder.update({
+      where: {
+        id: reminderId,
+      },
+      data: {
+        cancelled: true,
       },
     });
   } catch (error) {

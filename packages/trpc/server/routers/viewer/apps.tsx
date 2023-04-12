@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import z from "zod";
 
 import { appKeysSchemas } from "@calcom/app-store/apps.keys-schemas.generated";
-import { getLocalAppMetadata } from "@calcom/app-store/utils";
+import { getLocalAppMetadata, getAppFromSlug } from "@calcom/app-store/utils";
 import { sendDisabledAppEmail } from "@calcom/emails";
 import { deriveAppDictKeyFromType } from "@calcom/lib/deriveAppDictKeyFromType";
 import { getTranslation } from "@calcom/lib/server/i18n";
@@ -278,5 +278,68 @@ export const appsRouter = router({
       },
     });
     return !!gCalPresent;
+  }),
+  updateAppCredentials: authedProcedure
+    .input(
+      z.object({
+        credentialId: z.number(),
+        key: z.object({}).passthrough(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { user } = ctx;
+
+      const { key } = input;
+
+      // Find user credential
+      const credential = await ctx.prisma.credential.findFirst({
+        where: {
+          id: input.credentialId,
+          userId: user.id,
+        },
+      });
+      // Check if credential exists
+      if (!credential) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Could not find credential ${input.credentialId}`,
+        });
+      }
+
+      const updated = await ctx.prisma.credential.update({
+        where: {
+          id: credential.id,
+        },
+        data: {
+          key: {
+            ...(credential.key as Prisma.JsonObject),
+            ...(key as Prisma.JsonObject),
+          },
+        },
+      });
+
+      return !!updated;
+    }),
+  queryForDependencies: authedProcedure.input(z.string().array().optional()).query(async ({ ctx, input }) => {
+    if (!input) return;
+
+    const dependencyData: { name: string; slug: string; installed: boolean }[] = [];
+
+    await Promise.all(
+      input.map(async (dependency) => {
+        const appInstalled = await ctx.prisma.credential.findFirst({
+          where: {
+            appId: dependency,
+            userId: ctx.user.id,
+          },
+        });
+
+        const app = await getAppFromSlug(dependency);
+
+        dependencyData.push({ name: app?.name || dependency, slug: dependency, installed: !!appInstalled });
+      })
+    );
+
+    return dependencyData;
   }),
 });

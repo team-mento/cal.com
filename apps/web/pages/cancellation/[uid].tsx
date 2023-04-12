@@ -1,30 +1,23 @@
-import { GetServerSidePropsContext } from "next";
-import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { UrlObject } from "url";
+import type { GetServerSidePropsContext } from "next";
+import { z } from "zod";
 
+import { maybeGetBookingUidFromSeat } from "@calcom/lib/server/maybeGetBookingUidFromSeat";
 import prisma, { bookingMinimalSelect } from "@calcom/prisma";
 
-import { asStringOrUndefined } from "@lib/asStringOrNull";
-
-export default function Type(props: { destination: string | UrlObject }) {
-  const router = useRouter();
-
-  // Redirect here due to iframe issues
-  useEffect(() => {
-    if (router.isReady) {
-      router.replace(props.destination);
-    }
-  }, []);
-
+export default function Type() {
   // Just redirect to the schedule page to reschedule it.
   return null;
 }
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const { uid: bookingId } = z
+    .object({ uid: z.string(), seatReferenceUid: z.string().optional() })
+    .parse(context.query);
+  const uid = await maybeGetBookingUidFromSeat(prisma, bookingId);
+
   const booking = await prisma.booking.findUnique({
     where: {
-      uid: asStringOrUndefined(context.query.uid),
+      uid,
     },
     select: {
       ...bookingMinimalSelect,
@@ -48,14 +41,11 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       user: true,
     },
   });
-  const dynamicEventSlugRef = booking?.dynamicEventSlugRef || "";
 
   if (!booking) {
     return {
       notFound: true,
-    } as {
-      notFound: true;
-    };
+    } as const;
   }
 
   if (!booking?.eventType && !booking?.dynamicEventSlugRef) {
@@ -68,8 +58,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   }
 
   return {
-    props: {
-      destination: `/booking/${context.query.uid}?cancel=true`,
+    redirect: {
+      destination: `/booking/${uid}?cancel=true`,
+      permanent: false,
     },
   };
 }

@@ -1,6 +1,6 @@
 import { guessEventLocationType } from "@calcom/app-store/locations";
-import { Dayjs } from "@calcom/dayjs";
-import { Prisma } from "@calcom/prisma/client";
+import type { Dayjs } from "@calcom/dayjs";
+import type { Prisma } from "@calcom/prisma/client";
 
 export type VariablesType = {
   eventName?: string;
@@ -12,12 +12,19 @@ export type VariablesType = {
   timeZone?: string;
   location?: string | null;
   additionalNotes?: string | null;
-  customInputs?: Prisma.JsonValue;
+  responses?: Prisma.JsonValue;
   meetingUrl?: string;
 };
 
 const customTemplate = async (text: string, variables: VariablesType, locale: string) => {
-  const timeWithTimeZone = `${variables.eventTime?.locale(locale).format("HH:mm")} (${variables.timeZone})`;
+  const translatedDate = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(variables.eventDate?.toDate());
+
+  const timeWithTimeZone = `${variables.eventTime?.format("HH:mm")} (${variables.timeZone})`;
   let locationString = variables.location || "";
 
   if (text.includes("{LOCATION}")) {
@@ -30,7 +37,7 @@ const customTemplate = async (text: string, variables: VariablesType, locale: st
     .replaceAll("{ATTENDEE}", variables.attendeeName || "")
     .replaceAll("{ORGANIZER_NAME}", variables.organizerName || "") //old variable names
     .replaceAll("{ATTENDEE_NAME}", variables.attendeeName || "") //old variable names
-    .replaceAll("{EVENT_DATE}", variables.eventDate?.locale(locale).format("dddd, MMMM D, YYYY") || "")
+    .replaceAll("{EVENT_DATE}", translatedDate)
     .replaceAll("{EVENT_TIME}", timeWithTimeZone)
     .replaceAll("{LOCATION}", locationString)
     .replaceAll("{ADDITIONAL_NOTES}", variables.additionalNotes || "")
@@ -42,17 +49,17 @@ const customTemplate = async (text: string, variables: VariablesType, locale: st
   });
 
   customInputvariables?.forEach((variable) => {
-    if (variables.customInputs) {
-      Object.keys(variables.customInputs).forEach((customInput) => {
+    if (variables.responses) {
+      Object.keys(variables.responses).forEach((customInput) => {
         const formatedToVariable = customInput
           .replace(/[^a-zA-Z0-9 ]/g, "")
           .trim()
           .replaceAll(" ", "_")
           .toUpperCase();
-        if (variable === formatedToVariable && variables.customInputs) {
+        if (variable === formatedToVariable && variables.responses) {
           dynamicText = dynamicText.replace(
             `{${variable}}`,
-            variables.customInputs[customInput as keyof typeof variables.customInputs]
+            variables.responses[customInput as keyof typeof variables.responses]
           );
         }
       });

@@ -1,12 +1,15 @@
-import { cva, VariantProps } from "class-variance-authority";
-import Link, { LinkProps } from "next/link";
+import type { VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { LinkProps } from "next/link";
+import Link from "next/link";
 import React, { forwardRef } from "react";
 
 import classNames from "@calcom/lib/classNames";
 import { applyStyleToMultipleVariants } from "@calcom/lib/cva";
-import { SVGComponent } from "@calcom/types/SVGComponent";
-import { Tooltip } from "@calcom/ui";
-import { FiPlus } from "@calcom/ui/components/icon";
+import type { SVGComponent } from "@calcom/types/SVGComponent";
+
+import { FiPlus } from "../icon";
+import { Tooltip } from "../tooltip";
 
 type InferredVariantProps = VariantProps<typeof buttonClasses>;
 
@@ -39,11 +42,11 @@ const buttonClasses = cva(
       variant: {
         button: "",
         icon: "flex justify-center",
-        fab: "rounded-full justify-center sm:rounded-md  radix-state-open:rotate-45 sm:radix-state-open:rotate-0 transition-transform radix-state-open:shadown-none radix-state-open:ring-0 !shadow-none",
+        fab: "rounded-full justify-center md:rounded-md radix-state-open:rotate-45 md:radix-state-open:rotate-0 transition-transform radix-state-open:shadown-none radix-state-open:ring-0 !shadow-none",
       },
       color: {
         primary: "text-white dark:text-black",
-        secondary: "text-gray-900 dark:text-darkgray-900 bg-white",
+        secondary: "text-gray-900 dark:text-darkgray-900",
         minimal: "text-gray-900 dark:text-darkgray-900",
         destructive: "",
       },
@@ -132,7 +135,7 @@ const buttonClasses = cva(
         disabled: [false, undefined],
         color: "destructive",
         className:
-          "border dark:text-white text-gray-900 hover:text-red-700 focus-visible:text-red-700 dark:hover:text-red-700 dark:focus-visible:text-red-700 hover:border-red-100 focus-visible:border-red-100 hover:bg-red-100  focus-visible:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset focus-visible:ring-red-700",
+          "border border-gray-300 dark:text-white text-gray-900 hover:text-red-700 focus-visible:text-red-700 dark:hover:text-red-700 dark:focus-visible:text-red-700 focus-visible:border-red-100 hover:bg-red-100  focus-visible:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset hover:border-red-100 focus-visible:ring-red-700",
       }),
       // https://github.com/joe-bell/cva/issues/95 created an issue about using !p-2 on the icon variants as i would expect this to take priority
       {
@@ -148,7 +151,7 @@ const buttonClasses = cva(
       {
         variant: "fab",
         size: "base",
-        className: "h-14 sm:h-9 sm:w-auto sm:px-4 sm:py-2.5",
+        className: "h-14 md:h-9 md:w-auto md:px-4 md:py-2.5",
       },
     ],
     defaultVariants: {
@@ -203,24 +206,27 @@ export const Button = forwardRef<HTMLAnchorElement | HTMLButtonElement, ButtonPr
         <>
           {variant === "fab" ? (
             <>
-              <StartIcon className="hidden h-4 w-4 stroke-[1.5px] ltr:mr-2 rtl:ml-2 sm:inline-flex" />
-              <FiPlus className="inline h-6 w-6 sm:hidden" />
+              <StartIcon className="hidden h-4 w-4 stroke-[1.5px] ltr:mr-2 ltr:-ml-1 rtl:-mr-1 rtl:ml-2 md:inline-flex" />
+              <FiPlus className="inline h-6 w-6 md:hidden" />
             </>
           ) : (
             <StartIcon
               className={classNames(
                 variant === "icon" && "h-4 w-4",
-                variant === "button" && "h-4 w-4 stroke-[1.5px] ltr:mr-2 rtl:ml-2"
+                variant === "button" && "h-4 w-4 stroke-[1.5px] ltr:-ml-1 ltr:mr-2 rtl:-mr-1 rtl:ml-2"
               )}
             />
           )}
         </>
       )}
-      {variant === "fab" ? <span className="hidden sm:inline">{props.children}</span> : props.children}
+      {variant === "fab" ? <span className="hidden md:inline">{props.children}</span> : props.children}
       {loading && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform">
           <svg
-            className="mx-4 h-5 w-5 animate-spin text-black dark:text-white"
+            className={classNames(
+              "mx-4 h-5 w-5 animate-spin",
+              color === "primary" ? "text-white dark:text-black" : "text-black dark:text-white"
+            )}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24">
@@ -237,15 +243,15 @@ export const Button = forwardRef<HTMLAnchorElement | HTMLButtonElement, ButtonPr
         <>
           {variant === "fab" ? (
             <>
-              <EndIcon className="-mr-1 hidden h-5 w-5 ltr:ml-2 rtl:-ml-1 rtl:mr-2 sm:inline" />
-              <FiPlus className="inline h-6 w-6 sm:hidden" />
+              <EndIcon className="-mr-1 hidden h-5 w-5 ltr:ml-2 rtl:-ml-1 rtl:mr-2 md:inline" />
+              <FiPlus className="inline h-6 w-6 md:hidden" />
             </>
           ) : (
             <EndIcon
               className={classNames(
                 "inline-flex",
                 variant === "icon" && "h-4 w-4",
-                variant === "button" && "h-4 w-4 stroke-[1.5px] ltr:mr-2 rtl:ml-2"
+                variant === "button" && "h-4 w-4 stroke-[1.5px] ltr:ml-2 ltr:-mr-1 rtl:mr-2 rtl:-ml-1"
               )}
             />
           )}

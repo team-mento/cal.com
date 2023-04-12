@@ -4,6 +4,7 @@ import { v5 as uuidv5 } from "uuid";
 import type { CalendarEvent } from "@calcom/types/Calendar";
 
 import { WEBAPP_URL } from "./constants";
+import getLabelValueMapFromResponses from "./getLabelValueMapFromResponses";
 
 const translator = short();
 
@@ -17,14 +18,23 @@ ${calEvent.type}
 };
 
 export const getWhen = (calEvent: CalendarEvent) => {
-  return `
+  return calEvent.seatsPerTimeSlot
+    ? `
+${calEvent.organizer.language.translate("organizer_timezone")}:
+${calEvent.organizer.timeZone}
+  `
+    : `
 ${calEvent.organizer.language.translate("invitee_timezone")}:
 ${calEvent.attendees[0].timeZone}
   `;
 };
 
 export const getWho = (calEvent: CalendarEvent) => {
-  const attendees = calEvent.attendees
+  let attendeesFromCalEvent = [...calEvent.attendees];
+  if (calEvent.seatsPerTimeSlot && !calEvent.seatsShowAttendees) {
+    attendeesFromCalEvent = [];
+  }
+  const attendees = attendeesFromCalEvent
     .map((attendee) => {
       return `
 ${attendee?.name || calEvent.organizer.language.translate("guest")}
@@ -38,9 +48,18 @@ ${calEvent.organizer.name} - ${calEvent.organizer.language.translate("organizer"
 ${calEvent.organizer.email}
   `;
 
+  const teamMembers = calEvent.team?.members
+    ? calEvent.team.members.map((member) => {
+        return `
+${member.name} - ${calEvent.organizer.language.translate("team_member")}
+${member.email}
+    `;
+      })
+    : [];
+
   return `
 ${calEvent.organizer.language.translate("who")}:
-${organizer + attendees}
+${organizer + attendees + teamMembers.join("")}
   `;
 };
 
@@ -54,23 +73,25 @@ ${calEvent.additionalNotes}
   `;
 };
 
-export const getCustomInputs = (calEvent: CalendarEvent) => {
-  if (!calEvent.customInputs) {
+export const getUserFieldsResponses = (calEvent: CalendarEvent) => {
+  const labelValueMap = getLabelValueMapFromResponses(calEvent);
+
+  if (!labelValueMap) {
     return "";
   }
-  const customInputsString = Object.keys(calEvent.customInputs)
+  const responsesString = Object.keys(labelValueMap)
     .map((key) => {
-      if (!calEvent.customInputs) return "";
-      if (calEvent.customInputs[key] !== "") {
+      if (!labelValueMap) return "";
+      if (labelValueMap[key] !== "") {
         return `
 ${key}:
-${calEvent.customInputs[key]}
+${labelValueMap[key]}
   `;
       }
     })
     .join("");
 
-  return customInputsString;
+  return responsesString;
 };
 
 export const getAppsStatus = (calEvent: CalendarEvent) => {
@@ -124,7 +145,12 @@ export const getProviderName = (calEvent: CalendarEvent): string => {
 };
 
 export const getUid = (calEvent: CalendarEvent): string => {
-  return calEvent.uid ?? translator.fromUUID(uuidv5(JSON.stringify(calEvent), uuidv5.URL));
+  const uid = calEvent.uid;
+  return uid ?? translator.fromUUID(uuidv5(JSON.stringify(calEvent), uuidv5.URL));
+};
+
+const getSeatReferenceId = (calEvent: CalendarEvent): string => {
+  return calEvent.attendeeSeatId ? `seatReferenceUid=${calEvent.attendeeSeatId}` : "";
 };
 
 export const getManageLink = (calEvent: CalendarEvent) => {
@@ -135,12 +161,14 @@ ${WEBAPP_URL + "/booking/" + getUid(calEvent) + "?changes=true"}
 };
 
 export const getCancelLink = (calEvent: CalendarEvent): string => {
-  // CUSTOM_CODE removed cancel all bookings logic
   return WEBAPP_URL + `/booking/${getUid(calEvent)}?cancel=true`;
 };
 
 export const getRescheduleLink = (calEvent: CalendarEvent): string => {
-  return WEBAPP_URL + "/reschedule/" + getUid(calEvent);
+  const Uid = getUid(calEvent);
+  const seatUid = getSeatReferenceId(calEvent);
+
+  return `${WEBAPP_URL}/reschedule/${seatUid ? seatUid : Uid}`;
 };
 
 export const getRichDescription = (calEvent: CalendarEvent /*, attendee?: Person*/) => {
@@ -150,29 +178,16 @@ export const getRichDescription = (calEvent: CalendarEvent /*, attendee?: Person
 
   return `
 ${getCancellationReason(calEvent)}
-<b>${calEvent.organizer.language.translate("where")}:</b>
-${getLocation(calEvent)}
 
-<b>Prepare for your session</b>
-🏔 <a href="${appUrl}/growth" target="_blank">Review your Growth Plan</a> to help think about what you'd like to work on during the upcoming session. If this is one of your first 3 sessions, don't worry about it — we'll start with some exploration and goal-setting.
+🎥 <a href="${getLocation(calEvent)}" target="_blank">Join the session with Google Meet</a>
 
-✍️ <a href="${appUrl}/reflection" target="_blank">Take a Pre-Session Reflection</a> designed to inspire topics to discuss at your next 1:1.
-
-<b>Questions?</b>
-💬 <a href="${appUrl}" target="_blank">Message your coach</a> on Mento
-
-<b>Running late?</b>
-Coaching time is valuable. Please send your coach a message letting them know you're late. Your coach will wait for up to 10 minutes for you to arrive before considering it a <a href="${cancelationPolicyURL}" target="_blank">missed session</a>.
-
-<b>Can't make it?</b>
 📆 <a href="${getRescheduleLink(calEvent)}" target="_blank">Reschedule</a> or <a href="${getCancelLink(
     calEvent
-  )}" target="_blank">cancel</a> this session up to 48 hours before the session time. If you need to cancel within 24hrs or missed a session, please read our <a href="${cancelationPolicyURL}" target="_blank">cancelation policy</a>.
+  )}" target="_blank">cancel</a> on Mento within 48 hours form the session start time.
 
-<a href="${appUrl}/coaching" target="_blank">See and manage my Coaching Sessions</a> - <a href="${appUrl}" target="_blank">Go to my Mento dashboard</a>
+Your coach will wait for up to 10 minutes for you before it’s considered a missed session. <a href="${cancelationPolicyURL}" target="_blank">Mento Rescheduling & Cancelation Policy.</a>.
 
-${getAdditionalNotes(calEvent)}
-  `.trim();
+Manage coaching sessions on <a href="${appUrl}" target="_blank">Mento</a>`.trim();
 };
 
 export const getCancellationReason = (calEvent: CalendarEvent) => {

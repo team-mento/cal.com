@@ -1,8 +1,11 @@
 import type { User } from "@prisma/client";
 import { signOut, useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { NextRouter, useRouter } from "next/router";
-import React, { Dispatch, Fragment, ReactNode, SetStateAction, useEffect, useState } from "react";
+import type { NextRouter } from "next/router";
+import { useRouter } from "next/router";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import React, { Fragment, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import dayjs from "@calcom/dayjs";
@@ -11,64 +14,57 @@ import UnconfirmedBookingBadge from "@calcom/features/bookings/UnconfirmedBookin
 import ImpersonatingBanner from "@calcom/features/ee/impersonation/components/ImpersonatingBanner";
 import HelpMenuItem from "@calcom/features/ee/support/components/HelpMenuItem";
 import { TeamsUpgradeBanner } from "@calcom/features/ee/teams/components";
+import { useFlagMap } from "@calcom/features/flags/context/provider";
 import { KBarContent, KBarRoot, KBarTrigger } from "@calcom/features/kbar/Kbar";
 import TimezoneChangeDialog from "@calcom/features/settings/TimezoneChangeDialog";
-import { Tips } from "@calcom/features/tips";
 import AdminPasswordBanner from "@calcom/features/users/components/AdminPasswordBanner";
 import CustomBranding from "@calcom/lib/CustomBranding";
 import classNames from "@calcom/lib/classNames";
-import {
-  APP_NAME,
-  DESKTOP_APP_LINK,
-  JOIN_SLACK,
-  ROADMAP,
-  MENTO_COACH_URL,
-  WEBAPP_URL,
-} from "@calcom/lib/constants";
+import { APP_NAME, WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
+import { isKeyInObject } from "@calcom/lib/isKeyInObject";
 import { trpc } from "@calcom/trpc/react";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
-import { SVGComponent } from "@calcom/types/SVGComponent";
+import type { SVGComponent } from "@calcom/types/SVGComponent";
 import {
   Button,
   Credits,
   Dropdown,
+  DropdownItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownItem,
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   ErrorBoundary,
-  Logo,
   HeadSeo,
-  showToast,
+  Logo,
   SkeletonText,
+  showToast,
 } from "@calcom/ui";
 import {
-  FiMoreVertical,
-  FiMoon,
-  FiExternalLink,
-  FiLink,
-  FiSlack,
-  FiMap,
-  FiHelpCircle,
-  FiDownload,
-  FiLogOut,
+  FiArrowLeft,
+  FiArrowRight,
+  FiBarChart,
   FiCalendar,
   FiClock,
-  FiUsers,
-  FiGrid,
-  FiMoreHorizontal,
+  FiExternalLink,
   FiFileText,
-  FiZap,
+  FiGrid,
+  FiLink,
+  FiLogOut,
+  FiMoreHorizontal,
+  FiMoreVertical,
   FiSettings,
-  FiArrowRight,
-  FiArrowLeft,
 } from "@calcom/ui/components/icon";
 
-import { TeamInviteBadge } from "./TeamInviteBadge";
+import FreshChatProvider from "../ee/support/lib/freshchat/FreshChatProvider";
+
+// need to import without ssr to prevent hydration errors
+const Tips = dynamic(() => import("@calcom/features/tips").then((mod) => mod.Tips), {
+  ssr: false,
+});
 
 /* TODO: Migate this */
 
@@ -141,10 +137,6 @@ const Layout = (props: LayoutProps) => {
         <HeadSeo
           title={pageTitle ?? APP_NAME}
           description={props.subtitle ? props.subtitle?.toString() : ""}
-          nextSeoProps={{
-            nofollow: true,
-            noindex: true,
-          }}
         />
       )}
       <div>
@@ -195,6 +187,7 @@ type LayoutProps = {
   withoutSeo?: boolean;
   // Gives the ability to include actions to the right of the heading
   actions?: JSX.Element;
+  smallHeading?: boolean;
 };
 
 const CustomBrandingContainer = () => {
@@ -278,7 +271,7 @@ function UserDropdown({ small }: { small?: boolean }) {
     <Dropdown open={menuOpen}>
       <div className="ltr:sm:-ml-5 rtl:sm:-mr-5">
         <DropdownMenuTrigger asChild onClick={() => setMenuOpen((menuOpen) => !menuOpen)}>
-          <button className="group mx-0 flex w-full cursor-pointer appearance-none items-center rounded-full p-2 text-left outline-none hover:bg-gray-200 focus:outline-none focus:ring-0 sm:mx-2.5 sm:pl-3 md:rounded-none lg:rounded lg:pl-2">
+          <button className="radix-state-open:bg-gray-200 group mx-0 flex w-full cursor-pointer appearance-none items-center rounded-full p-2 text-left outline-none hover:bg-gray-200 focus:outline-none focus:ring-0 sm:mx-2.5 sm:pl-3 md:rounded-none lg:rounded lg:pl-2">
             <span
               className={classNames(
                 small ? "h-6 w-6 md:ml-3" : "h-8 w-8 ltr:mr-2 rtl:ml-2",
@@ -302,10 +295,10 @@ function UserDropdown({ small }: { small?: boolean }) {
             {!small && (
               <span className="flex flex-grow items-center truncate">
                 <span className="flex-grow truncate text-sm">
-                  <span className="block truncate font-medium text-gray-900">
+                  <span className="mb-1 block truncate font-medium leading-none text-gray-900">
                     {user.name || "Nameless User"}
                   </span>
-                  <span className="block truncate font-normal text-gray-900">
+                  <span className="block truncate font-normal leading-none text-gray-600">
                     {user.username
                       ? process.env.NEXT_PUBLIC_WEBSITE_URL === "https://cal.com"
                         ? `cal.com/${user.username}`
@@ -324,111 +317,123 @@ function UserDropdown({ small }: { small?: boolean }) {
       </div>
 
       <DropdownMenuPortal>
-        <DropdownMenuContent
-          onInteractOutside={() => {
-            setMenuOpen(false);
-            setHelpOpen(false);
-          }}
-          className="overflow-hidden rounded-md">
-          {helpOpen ? (
-            <HelpMenuItem onHelpItemSelect={() => onHelpItemSelect()} />
-          ) : (
-            <>
-              {/*<DropdownMenuItem>*/}
-              {/*  <DropdownItem*/}
-              {/*    type="button"*/}
-              {/*    StartIcon={(props) => (*/}
-              {/*      <FiMoon*/}
-              {/*        className={classNames(*/}
-              {/*          user.away*/}
-              {/*            ? "text-purple-500 group-hover:text-purple-700"*/}
-              {/*            : "text-gray-500 group-hover:text-gray-700",*/}
-              {/*          props.className*/}
-              {/*        )}*/}
-              {/*        aria-hidden="true"*/}
-              {/*      />*/}
-              {/*    )}*/}
-              {/*    onClick={() => {*/}
-              {/*      mutation.mutate({ away: !user?.away });*/}
-              {/*      utils.viewer.me.invalidate();*/}
-              {/*    }}>*/}
-              {/*    {user.away ? t("set_as_free") : t("set_as_away")}*/}
-              {/*  </DropdownItem>*/}
-              {/*</DropdownMenuItem>*/}
-              {/*<DropdownMenuSeparator />*/}
-              {user.username && (
-                <>
-                  <DropdownMenuItem>
-                    <DropdownItem
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`}
-                      StartIcon={FiExternalLink}>
-                      {t("view_public_page")}
-                    </DropdownItem>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <DropdownItem
-                      type="button"
-                      StartIcon={FiLink}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigator.clipboard.writeText(
-                          `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`
-                        );
-                        showToast(t("link_copied"), "success");
-                      }}>
-                      {t("copy_public_page_link")}
-                    </DropdownItem>
-                  </DropdownMenuItem>
-                </>
-              )}
-              {/*<DropdownMenuSeparator />*/}
-              {/*<DropdownMenuItem>*/}
-              {/*  <DropdownItem*/}
-              {/*    StartIcon={(props) => <FiSlack strokeWidth={1.5} {...props} />}*/}
-              {/*    target="_blank"*/}
-              {/*    rel="noreferrer"*/}
-              {/*    href={JOIN_SLACK}>*/}
-              {/*    {t("join_our_slack")}*/}
-              {/*  </DropdownItem>*/}
-              {/*</DropdownMenuItem>*/}
-              {/*<DropdownMenuItem>*/}
-              {/*  <DropdownItem StartIcon={FiMap} target="_blank" href={ROADMAP}>*/}
-              {/*    {t("visit_roadmap")}*/}
-              {/*  </DropdownItem>*/}
-              {/*</DropdownMenuItem>*/}
-              {/*<DropdownMenuItem>*/}
-              {/*  <DropdownItem*/}
-              {/*    type="button"*/}
-              {/*    StartIcon={(props) => <FiHelpCircle aria-hidden="true" {...props} />}*/}
-              {/*    onClick={() => setHelpOpen(true)}>*/}
-              {/*    {t("help")}*/}
-              {/*  </DropdownItem>*/}
-              {/*</DropdownMenuItem>*/}
-              {/*<DropdownMenuItem>*/}
-              {/*  <DropdownItem*/}
-              {/*    StartIcon={FiDownload}*/}
-              {/*    target="_blank"*/}
-              {/*    rel="noreferrer"*/}
-              {/*    className="desktop-hidden hidden lg:flex"*/}
-              {/*    href={DESKTOP_APP_LINK}>*/}
-              {/*    {t("download_desktop_app")}*/}
-              {/*  </DropdownItem>*/}
-              {/*</DropdownMenuItem>*/}
+        <FreshChatProvider>
+          <DropdownMenuContent
+            onInteractOutside={() => {
+              setMenuOpen(false);
+              setHelpOpen(false);
+            }}
+            className="overflow-hidden rounded-md">
+            {helpOpen ? (
+              <HelpMenuItem onHelpItemSelect={() => onHelpItemSelect()} />
+            ) : (
+              <>
+                {/*<DropdownMenuItem>*/}
+                {/*  <DropdownItem*/}
+                {/*    type="button"*/}
+                {/*    StartIcon={(props) => (*/}
+                {/*      <FiMoon*/}
+                {/*        className={classNames(*/}
+                {/*          user.away*/}
+                {/*            ? "text-purple-500 group-hover:text-purple-700"*/}
+                {/*            : "text-gray-500 group-hover:text-gray-700",*/}
+                {/*          props.className*/}
+                {/*        )}*/}
+                {/*        aria-hidden="true"*/}
+                {/*      />*/}
+                {/*    )}*/}
+                {/*    onClick={() => {*/}
+                {/*      mutation.mutate({ away: !user?.away });*/}
+                {/*      utils.viewer.me.invalidate();*/}
+                {/*    }}>*/}
+                {/*    {user.away ? t("set_as_free") : t("set_as_away")}*/}
+                {/*  </DropdownItem>*/}
+                {/*</DropdownMenuItem>*/}
+                {/*<DropdownMenuSeparator />*/}
+                {user.username && (
+                  <>
+                    <DropdownMenuItem>
+                      <DropdownItem
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href={`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}`}
+                        StartIcon={FiArrowLeft}>
+                        Back to Mento
+                      </DropdownItem>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
 
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <DropdownItem
-                  type="button"
-                  StartIcon={(props) => <FiLogOut aria-hidden="true" {...props} />}
-                  onClick={() => signOut({ callbackUrl: "/auth/logout" })}>
-                  {t("sign_out")}
-                </DropdownItem>
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
+                    <DropdownMenuItem>
+                      <DropdownItem
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`}
+                        StartIcon={FiExternalLink}>
+                        {t("view_public_page")}
+                      </DropdownItem>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <DropdownItem
+                        type="button"
+                        StartIcon={FiLink}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigator.clipboard.writeText(
+                            `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`
+                          );
+                          showToast(t("link_copied"), "success");
+                        }}>
+                        {t("copy_public_page_link")}
+                      </DropdownItem>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {/*<DropdownMenuSeparator />*/}
+                {/*<DropdownMenuItem>*/}
+                {/*  <DropdownItem*/}
+                {/*    StartIcon={(props) => <FiSlack strokeWidth={1.5} {...props} />}*/}
+                {/*    target="_blank"*/}
+                {/*    rel="noreferrer"*/}
+                {/*    href={JOIN_SLACK}>*/}
+                {/*    {t("join_our_slack")}*/}
+                {/*  </DropdownItem>*/}
+                {/*</DropdownMenuItem>*/}
+                {/*<DropdownMenuItem>*/}
+                {/*  <DropdownItem StartIcon={FiMap} target="_blank" href={ROADMAP}>*/}
+                {/*    {t("visit_roadmap")}*/}
+                {/*  </DropdownItem>*/}
+                {/*</DropdownMenuItem>*/}
+                {/*<DropdownMenuItem>*/}
+                {/*  <DropdownItem*/}
+                {/*    type="button"*/}
+                {/*    StartIcon={(props) => <FiHelpCircle aria-hidden="true" {...props} />}*/}
+                {/*    onClick={() => setHelpOpen(true)}>*/}
+                {/*    {t("help")}*/}
+                {/*  </DropdownItem>*/}
+                {/*</DropdownMenuItem>*/}
+                {/*<DropdownMenuItem className="desktop-hidden hidden lg:flex">*/}
+                {/*  <DropdownItem*/}
+                {/*    StartIcon={FiDownload}*/}
+                {/*    target="_blank"*/}
+                {/*    rel="noreferrer"*/}
+                {/*    href={DESKTOP_APP_LINK}>*/}
+                {/*    {t("download_desktop_app")}*/}
+                {/*  </DropdownItem>*/}
+                {/*</DropdownMenuItem>*/}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <DropdownItem
+                    type="button"
+                    StartIcon={(props) => <FiLogOut aria-hidden="true" {...props} />}
+                    onClick={() => signOut({ callbackUrl: "/auth/logout" })}>
+                    {t("sign_out")}
+                  </DropdownItem>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </FreshChatProvider>
       </DropdownMenuPortal>
     </Dropdown>
   );
@@ -458,11 +463,6 @@ const requiredCredentialNavigationItems = ["Routing Forms"];
 const MORE_SEPARATOR_NAME = "more";
 
 const navigation: NavigationItemType[] = [
-  {
-    name: "Back to Mento",
-    href: "MENTO_URL",
-    icon: FiArrowLeft,
-  },
   {
     name: "event_types_page_title",
     href: "/event-types",
@@ -544,6 +544,11 @@ const navigation: NavigationItemType[] = [
   //   icon: FiZap,
   // },
   {
+    name: "insights",
+    href: "/insights",
+    icon: FiBarChart,
+  },
+  {
     name: "settings",
     href: "/settings/my-account/profile",
     icon: FiSettings,
@@ -589,6 +594,8 @@ function useShouldDisplayNavigationItem(item: NavigationItemType) {
       trpc: {},
     }
   );
+  const flags = useFlagMap();
+  if (isKeyInObject(item.name, flags)) return flags[item.name];
   return !requiredCredentialNavigationItems.includes(item.name) || routingForms?.isInstalled;
 }
 
@@ -600,9 +607,8 @@ const NavigationItem: React.FC<{
   index?: number;
   item: NavigationItemType;
   isChild?: boolean;
-  isApp?: boolean;
 }> = (props) => {
-  const { item, isChild, isApp } = props;
+  const { item, isChild } = props;
   const { t, isLocaleReady } = useLocale();
   const router = useRouter();
   const isCurrent: NavigationItemType["isCurrent"] = item.isCurrent || defaultIsCurrent;
@@ -614,10 +620,7 @@ const NavigationItem: React.FC<{
   return (
     <Fragment>
       <Link
-        href={
-          // CUSTOM_CODE
-          item.href === "MENTO_URL" ? MENTO_COACH_URL : item.href
-        }
+        href={item.href}
         aria-label={t(item.name)}
         className={classNames(
           "group flex items-center rounded-md py-2 px-3 text-sm font-medium text-gray-600 hover:bg-gray-100 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:hover:text-gray-900",
@@ -646,9 +649,7 @@ const NavigationItem: React.FC<{
       </Link>
       {item.child &&
         isCurrent({ router, isChild, item }) &&
-        item.child.map((item, index) => (
-          <NavigationItem key={item.name} item={item} isChild isApp={index === 0} />
-        ))}
+        item.child.map((item, index) => <NavigationItem index={index} key={item.name} item={item} isChild />)}
     </Fragment>
   );
 };
@@ -666,7 +667,7 @@ const MobileNavigation = () => {
     <>
       <nav
         className={classNames(
-          "bottom-nav bg-sunny-100 border-sunny-200 fixed bottom-0 z-30 -mx-4 flex w-full border border-t px-1 shadow backdrop-blur-md md:hidden",
+          "pwa:pb-2.5 fixed bottom-0 z-30 -mx-4 flex w-full border border-t border-gray-200 bg-gray-50 bg-opacity-40 px-1 shadow backdrop-blur-md md:hidden",
           isEmbed && "hidden"
         )}>
         {mobileNavigationBottomItems.map((item) => (
@@ -695,7 +696,7 @@ const MobileNavigationItem: React.FC<{
     <Link
       key={item.name}
       href={item.href}
-      className="relative my-2 min-w-0 flex-1 overflow-hidden rounded-md py-2 px-1 text-center text-xs font-medium text-gray-400 hover:bg-gray-200 hover:text-gray-700 focus:z-10 sm:text-sm [&[aria-current='page']]:text-gray-900"
+      className="relative my-2 min-w-0 flex-1 overflow-hidden rounded-md !bg-transparent p-1 text-center text-xs font-medium text-gray-400 hover:text-gray-700 focus:z-10 sm:text-sm [&[aria-current='page']]:text-gray-900"
       aria-current={current ? "page" : undefined}>
       {item.badge && <div className="absolute right-1 top-1">{item.badge}</div>}
       {item.icon && (
@@ -752,12 +753,7 @@ function SideBar() {
         <div className="flex h-full flex-col justify-between py-3 lg:pt-6 ">
           <header className="items-center justify-between md:hidden lg:flex">
             <Link href="/event-types" className="px-2">
-              <img
-                src="https://mento-space.nyc3.digitaloceanspaces.com/logo.svg"
-                alt="logo"
-                width="100"
-                height="40"
-              />
+              <Logo small />
             </Link>
             <div className="flex space-x-2 rtl:space-x-reverse">
               <button
@@ -806,32 +802,42 @@ function SideBar() {
 export function ShellMain(props: LayoutProps) {
   const router = useRouter();
   const { isLocaleReady } = useLocale();
+
   return (
     <>
-      <div className="mb-6 flex sm:mt-0 lg:mb-10">
+      <div
+        className={classNames(
+          "flex items-center md:mt-0 md:mb-6",
+          props.smallHeading ? "lg:mb-7" : "lg:mb-8"
+        )}>
         {!!props.backPath && (
           <Button
             variant="icon"
+            size="sm"
             color="minimal"
             onClick={() =>
               typeof props.backPath === "string" ? router.push(props.backPath as string) : router.back()
             }
             StartIcon={FiArrowLeft}
             aria-label="Go Back"
-            className="ltr:mr-2 rtl:ml-2"
+            className="rounded-md ltr:mr-2 rtl:ml-2"
           />
         )}
         {props.heading && (
-          <header className={classNames(props.large && "py-8", "flex w-full max-w-full")}>
+          <header className={classNames(props.large && "py-8", "flex w-full max-w-full items-center")}>
             {props.HeadingLeftIcon && <div className="ltr:mr-4">{props.HeadingLeftIcon}</div>}
-            <div className={classNames("w-full ltr:mr-4 rtl:ml-4 sm:block", props.headerClassName)}>
+            <div className={classNames("w-full ltr:mr-4 rtl:ml-4 md:block", props.headerClassName)}>
               {props.heading && (
-                <h1 className="font-cal max-w-28 sm:max-w-72 md:max-w-80 mt-1 hidden truncate text-2xl font-semibold tracking-wide text-black sm:block xl:max-w-full">
+                <h3
+                  className={classNames(
+                    "font-cal max-w-28 sm:max-w-72 md:max-w-80 hidden truncate text-xl font-semibold tracking-wide text-black md:block xl:max-w-full",
+                    props.smallHeading ? "text-base" : "text-xl"
+                  )}>
                   {!isLocaleReady ? <SkeletonText invisible /> : props.heading}
-                </h1>
+                </h3>
               )}
               {props.subtitle && (
-                <p className="hidden text-sm text-gray-500 sm:block">
+                <p className="hidden text-sm text-gray-500 md:block">
                   {!isLocaleReady ? <SkeletonText invisible /> : props.subtitle}
                 </p>
               )}
@@ -841,8 +847,8 @@ export function ShellMain(props: LayoutProps) {
                 className={classNames(
                   props.backPath
                     ? "relative"
-                    : "fixed bottom-[88px] z-40 ltr:right-4 rtl:left-4 sm:z-auto md:ltr:right-0 md:rtl:left-0",
-                  "flex-shrink-0 sm:relative sm:bottom-auto sm:right-auto"
+                    : "pwa:bottom-24 fixed bottom-20 z-40 ltr:right-4 rtl:left-4 md:z-auto md:ltr:right-0 md:rtl:left-0",
+                  "flex-shrink-0 md:relative md:bottom-auto md:right-auto"
                 )}>
                 {props.CTA}
               </div>
@@ -867,7 +873,7 @@ function MainContainer({
     <main className="relative z-0 flex-1 bg-white focus:outline-none">
       {/* show top navigation for md and smaller (tablet and phones) */}
       {TopNavContainerProp}
-      <div className="max-w-full px-4 py-8 lg:px-12">
+      <div className="max-w-full py-4 px-4 md:py-8 lg:px-12">
         <ErrorBoundary>
           {!props.withoutMain ? <ShellMain {...props}>{props.children}</ShellMain> : props.children}
         </ErrorBoundary>
@@ -891,14 +897,9 @@ function TopNav() {
     <>
       <nav
         style={isEmbed ? { display: "none" } : {}}
-        className="border-sunny-200 bg-sunny-100 sticky top-0 z-40 flex w-full items-center justify-between border-b py-1.5 px-4 backdrop-blur-lg sm:p-4 md:hidden">
+        className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-gray-200 bg-gray-50 bg-opacity-50 py-1.5 px-4 backdrop-blur-lg sm:p-4 md:hidden">
         <Link href="/event-types">
-          <img
-            src="https://mento-space.nyc3.digitaloceanspaces.com/logo.svg"
-            alt="logo"
-            width="100"
-            height="40"
-          />
+          <Logo />
         </Link>
         <div className="flex items-center gap-2 self-center">
           <span className="group flex items-center rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 lg:hidden">
@@ -906,7 +907,7 @@ function TopNav() {
           </span>
           <button className="rounded-full p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2">
             <span className="sr-only">{t("settings")}</span>
-            <Link href="/settings/profile">
+            <Link href="/settings/my-account/profile">
               <FiSettings className="h-4 w-4 text-gray-700" aria-hidden="true" />
             </Link>
           </button>

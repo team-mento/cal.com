@@ -1,4 +1,4 @@
-import { IS_PRODUCTION, WEBAPP_URL } from "@calcom/lib/constants";
+import { WEBAPP_URL } from "@calcom/lib/constants";
 
 import RawHtml from "./RawHtml";
 import Row from "./Row";
@@ -6,9 +6,7 @@ import Row from "./Row";
 const CommentIE = ({ html = "" }) => <RawHtml html={`<!--[if mso | IE]>${html}<![endif]-->`} />;
 
 const EmailBodyLogo = () => {
-  const image = IS_PRODUCTION
-    ? WEBAPP_URL + "/emails/CalLogo@2x.png"
-    : "https://app.cal.com/emails/CalLogo@2x.png";
+  const image = "https://mento-space.nyc3.digitaloceanspaces.com/logo.png";
 
   return (
     <>
@@ -50,18 +48,18 @@ const EmailBodyLogo = () => {
                     <td style={{ width: "89px" }}>
                       <a href={WEBAPP_URL} target="_blank" rel="noreferrer">
                         <img
-                          height="19"
+                          height="45"
                           src={image}
                           style={{
                             border: "0",
                             display: "block",
                             outline: "none",
                             textDecoration: "none",
-                            height: "19px",
+                            height: "45px",
                             width: "100%",
                             fontSize: "13px",
                           }}
-                          width="89"
+                          width="150"
                           alt=""
                         />
                       </a>

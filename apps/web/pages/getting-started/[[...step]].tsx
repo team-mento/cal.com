@@ -1,27 +1,28 @@
-import { GetServerSidePropsContext } from "next";
+import type { GetServerSidePropsContext } from "next";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
-import { getSession } from "@calcom/lib/auth";
+import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { APP_NAME } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import prisma from "@calcom/prisma";
 import { Button, StepCard, Steps } from "@calcom/ui";
 
-import prisma from "@lib/prisma";
-import { inferSSRProps } from "@lib/types/inferSSRProps";
+import type { inferSSRProps } from "@lib/types/inferSSRProps";
 
 import { ConnectedCalendars } from "@components/getting-started/steps-views/ConnectCalendars";
 import { SetupAvailability } from "@components/getting-started/steps-views/SetupAvailability";
+import UserProfile from "@components/getting-started/steps-views/UserProfile";
 import { UserSettings } from "@components/getting-started/steps-views/UserSettings";
 
 export type IOnboardingPageProps = inferSSRProps<typeof getServerSideProps>;
 
 const INITIAL_STEP = "user-settings";
-const steps = ["user-settings", "connected-calendar", "setup-availability"] as const;
+const steps = ["user-settings", "connected-calendar", "setup-availability", "user-profile"] as const;
 
-const stepTransform = (step: typeof steps[number]) => {
+const stepTransform = (step: (typeof steps)[number]) => {
   const stepIndex = steps.indexOf(step);
   if (stepIndex > -1) {
     return steps[stepIndex];
@@ -59,6 +60,10 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
         `${t("set_availability_getting_started_subtitle_2")}`,
       ],
     },
+    {
+      title: `${t("nearly_there")}`,
+      subtitle: [`${t("nearly_there_instructions")}`],
+    },
   ];
 
   const goToIndex = (index: number) => {
@@ -75,7 +80,7 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
 
   return (
     <div
-      className="bg-sunny-100 dark:text-brand-contrast min-h-screen text-black"
+      className="dark:bg-brand dark:text-brand-contrast min-h-screen text-black"
       data-testid="onboarding"
       key={router.asPath}>
       <Head>
@@ -84,15 +89,6 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
         </title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-      <div className="flex items-center justify-center p-4">
-        <img
-          src="https://mento-space.nyc3.digitaloceanspaces.com/logo.svg"
-          alt="logo"
-          width="100"
-          height="40"
-        />
-      </div>
 
       <div className="mx-auto px-4 py-6 md:py-24">
         <div className="relative">
@@ -109,7 +105,7 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
                   </p>
                 ))}
               </header>
-              <Steps maxSteps={steps.length} currentStep={currentStepIndex} navigateToStep={goToIndex} />
+              <Steps maxSteps={steps.length} currentStep={currentStepIndex + 1} navigateToStep={goToIndex} />
             </div>
             <StepCard>
               {currentStep === "user-settings" && <UserSettings user={user} nextStep={() => goToIndex(1)} />}
@@ -117,11 +113,10 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
               {currentStep === "connected-calendar" && <ConnectedCalendars nextStep={() => goToIndex(2)} />}
 
               {currentStep === "setup-availability" && (
-                <SetupAvailability
-                  nextStep={() => router.push("/getting-started/onboarded")}
-                  defaultScheduleId={user.defaultScheduleId}
-                />
+                <SetupAvailability nextStep={() => goToIndex(3)} defaultScheduleId={user.defaultScheduleId} />
               )}
+
+              {currentStep === "user-profile" && <UserProfile user={user} />}
             </StepCard>
             {headers[currentStepIndex]?.skipText && (
               <div className="flex w-full flex-row justify-center">
@@ -145,14 +140,16 @@ const OnboardingPage = (props: IOnboardingPageProps) => {
 };
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
+  const { req, res } = context;
+
   const crypto = await import("crypto");
-  const session = await getSession(context);
+  const session = await getServerSession({ req, res });
 
   if (!session?.user?.id) {
     return { redirect: { permanent: false, destination: "/auth/login" } };
   }
 
-  let user = await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: {
       id: session.user.id,
     },
@@ -179,28 +176,6 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
 
   if (!user) {
     throw new Error("User from session not found");
-  }
-
-  // CUSTOM_CODE: Update Properties from App DB
-  if (process.env?.NEXT_PUBLIC_MENTO_COACH_URL && process.env?.NEXT_PUBLIC_CALENDAR_KEY) {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
-          },
-        }
-      );
-      const data = await response?.json();
-
-      if (data) {
-        user = { ...user, name: data?.name, bio: data?.bio, avatar: data?.profileUrl };
-      }
-    } catch (e) {
-      console.error(e);
-    }
   }
 
   if (user.completedOnboarding) {

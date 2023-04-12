@@ -1,18 +1,18 @@
 import { ArrowRightIcon } from "@heroicons/react/solid";
-import MarkdownIt from "markdown-it";
 import { useRouter } from "next/router";
-import { FormEvent, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import turndownService from "@calcom/lib/turndownService";
+import { md } from "@calcom/lib/markdownIt";
+import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
+import turndown from "@calcom/lib/turndownService";
 import { trpc } from "@calcom/trpc/react";
 import { Button, Editor, ImageUploader, Label, showToast } from "@calcom/ui";
 import { Avatar } from "@calcom/ui";
 
 import type { IOnboardingPageProps } from "../../../pages/getting-started/[[...step]]";
-
-const md = new MarkdownIt("default", { html: true, breaks: true });
 
 type FormData = {
   bio: string;
@@ -34,6 +34,7 @@ const UserProfile = (props: IUserProfileProps) => {
   const utils = trpc.useContext();
   const router = useRouter();
   const createEventType = trpc.viewer.eventTypes.create.useMutation();
+  const telemetry = useTelemetry();
 
   const mutation = trpc.viewer.updateProfile.useMutation({
     onSuccess: async (_data, context) => {
@@ -64,6 +65,8 @@ const UserProfile = (props: IUserProfileProps) => {
   const onSubmit = handleSubmit((data: { bio: string }) => {
     const { bio } = data;
 
+    telemetry.event(telemetryEventTypes.onboardingFinished);
+
     mutation.mutate({
       bio,
       completedOnboarding: true,
@@ -80,20 +83,42 @@ const UserProfile = (props: IUserProfileProps) => {
 
   const DEFAULT_EVENT_TYPES = [
     {
-      title: t("15min_meeting"),
-      slug: "15min",
-      length: 15,
+      title: "Start Bi-Weekly Coaching",
+      slug: "bi-weekly-start-coaching-session",
+      eventName: "{ATTENDEE} & {HOST} | Mento Bi-Weekly Coaching",
+      description:
+        "Choose a time that works for you every two weeks. You'll get the first invite right-away and a complete schedule confirmed soon after.",
+      locations: [{ type: "integrations:google:meet" }],
+      length: 45,
+      hidden: false,
+      afterEventBuffer: 15,
+      minimumBookingNotice: 1440,
+      slotInterval: 30,
     },
     {
-      title: t("30min_meeting"),
-      slug: "30min",
-      length: 30,
+      title: "Single Coaching Session",
+      slug: "single-coaching-session",
+      eventName: "{ATTENDEE} & {HOST} | Mento Coaching Session",
+      description: "Please use this to book one-time and make up sessions when necessary.",
+      locations: [{ type: "integrations:google:meet" }],
+      length: 45,
+      hidden: false,
+      afterEventBuffer: 15,
+      minimumBookingNotice: 1440,
+      slotInterval: 30,
     },
     {
-      title: t("secret_meeting"),
-      slug: "secret",
-      length: 15,
+      title: "Bi-Weekly Coaching session",
+      slug: "bi-weekly-coaching-session",
+      eventName: "{ATTENDEE} & {HOST} | Mento Bi-Weekly Coaching",
+      description: "Set up your ongoing Mento Coaching schedule (45 minutes every two weeks).",
+      locations: [{ type: "integrations:google:meet" }],
+      recurringEvent: { freq: 2, count: 24, interval: 2 },
+      length: 45,
       hidden: true,
+      afterEventBuffer: 15,
+      minimumBookingNotice: 1440,
+      slotInterval: 30,
     },
   ];
 
@@ -142,16 +167,14 @@ const UserProfile = (props: IUserProfileProps) => {
         <Label className="mb-2 block text-sm font-medium text-gray-700">{t("about")}</Label>
         <Editor
           getText={() => md.render(getValues("bio") || user?.bio || "")}
-          setText={(value: string) => setValue("bio", turndownService.turndown(value))}
-          excludedToolbarItems={["blockType"]}
+          setText={(value: string) => setValue("bio", turndown(value))}
+          excludedToolbarItems={["blockType", "bold", "italic", "link"]}
         />
         <p className="mt-2 font-sans text-sm font-normal text-gray-600 dark:text-white">
           {t("few_sentences_about_yourself")}
         </p>
       </fieldset>
-      <Button
-        type="submit"
-        className="mt-8 flex w-full flex-row justify-center rounded-md border border-black bg-black p-2 text-center text-sm text-white">
+      <Button type="submit" className="mt-8 flex w-full flex-row justify-center">
         {t("finish")}
         <ArrowRightIcon className="ml-2 h-4 w-4 self-center" aria-hidden="true" />
       </Button>

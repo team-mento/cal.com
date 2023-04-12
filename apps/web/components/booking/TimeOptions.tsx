@@ -1,7 +1,8 @@
-import { FC, useEffect, useState } from "react";
+import type { FC } from "react";
+import { useEffect, useState } from "react";
 
-import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { ITimezoneOption, TimezoneSelect } from "@calcom/ui";
+import type { ITimezoneOption } from "@calcom/ui";
+import { TimezoneSelect } from "@calcom/ui";
 
 import { timeZone } from "../../lib/clock";
 
@@ -11,7 +12,6 @@ type Props = {
 
 const TimeOptions: FC<Props> = ({ onSelectTimeZone }) => {
   const [selectedTimeZone, setSelectedTimeZone] = useState("");
-  const { t } = useLocale();
 
   useEffect(() => {
     setSelectedTimeZone(timeZone());
@@ -23,18 +23,17 @@ const TimeOptions: FC<Props> = ({ onSelectTimeZone }) => {
     }
   }, [selectedTimeZone, onSelectTimeZone]);
 
-  return selectedTimeZone !== "" ? (
-    <div className="dark:border-darkgray-300 dark:bg-darkgray-200 rounded-sm border border-gray-200 bg-white px-4 pt-4 pb-3 shadow-sm">
-      <div className="mb-4 flex">
-        <div className="text-sm font-medium text-gray-600 dark:text-white">{t("time_options")}</div>
-      </div>
-      <TimezoneSelect
-        id="timeZone"
-        value={selectedTimeZone}
-        onChange={(tz: ITimezoneOption) => setSelectedTimeZone(tz.value)}
-        className="focus:border-brand mt-1 mb-2 block w-full rounded-md border-gray-300 text-sm focus:ring-black"
-      />
-    </div>
+  return !!selectedTimeZone ? (
+    <TimezoneSelect
+      id="timeZone"
+      classNames={{
+        singleValue: () => "dark:text-darkgray-600 text-gray-600",
+        menu: () => "!w-64 max-w-[90vw]",
+      }}
+      variant="minimal"
+      value={selectedTimeZone}
+      onChange={(tz: ITimezoneOption) => setSelectedTimeZone(tz.value)}
+    />
   ) : null;
 };
 

@@ -3,7 +3,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/r
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import React, { ComponentProps, useEffect, useState } from "react";
+import type { ComponentProps } from "react";
+import React, { useEffect, useState } from "react";
 
 import Shell from "@calcom/features/shell/Shell";
 import { classNames } from "@calcom/lib";
@@ -11,21 +12,10 @@ import { HOSTED_CAL_FEATURES, WEBAPP_URL } from "@calcom/lib/constants";
 import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
-import {
-  Badge,
-  Button,
-  ErrorBoundary,
-  VerticalTabItemProps,
-  VerticalTabItem,
-  Skeleton,
-  useMeta,
-} from "@calcom/ui";
+import type { VerticalTabItemProps } from "@calcom/ui";
+import { Badge, Button, ErrorBoundary, VerticalTabItem, Skeleton, useMeta } from "@calcom/ui";
 import {
   FiUser,
-  FiKey,
-  FiCreditCard,
-  FiTerminal,
-  FiUsers,
   FiLock,
   FiArrowLeft,
   FiChevronDown,
@@ -49,34 +39,34 @@ const tabs: VerticalTabItemProps[] = [
       // { name: "referrals", href: "/settings/my-account/referrals" },
     ],
   },
-  {
-    name: "security",
-    href: "/settings/security",
-    icon: FiKey,
-    children: [
-      { name: "password", href: "/settings/security/password" },
-      // { name: "2fa_auth", href: "/settings/security/two-factor-auth" },
-      // { name: "impersonation", href: "/settings/security/impersonation" },
-    ],
-  },
+  // {
+  //   name: "security",
+  //   href: "/settings/security",
+  //   icon: FiKey,
+  //   children: [
+  //     // { name: "password", href: "/settings/security/password" },
+  //     // { name: "2fa_auth", href: "/settings/security/two-factor-auth" },
+  //     { name: "impersonation", href: "/settings/security/impersonation" },
+  //   ],
+  // },
   // {
   //   name: "billing",
   //   href: "/settings/billing",
   //   icon: FiCreditCard,
   //   children: [{ name: "manage_billing", href: "/settings/billing" }],
   // },
-  {
-    name: "developer",
-    href: "/settings/developer",
-    icon: FiTerminal,
-    children: [
-      //
-      { name: "webhooks", href: "/settings/developer/webhooks" },
-      { name: "api_keys", href: "/settings/developer/api-keys" },
-      // TODO: Add profile level for embeds
-      // { name: "embeds", href: "/v2/settings/developer/embeds" },
-    ],
-  },
+  // {
+  //   name: "developer",
+  //   href: "/settings/developer",
+  //   icon: FiTerminal,
+  //   children: [
+  //     //
+  //     { name: "webhooks", href: "/settings/developer/webhooks" },
+  //     { name: "api_keys", href: "/settings/developer/api-keys" },
+  //     // TODO: Add profile level for embeds
+  //     // { name: "embeds", href: "/v2/settings/developer/embeds" },
+  //   ],
+  // },
   // {
   //   name: "teams",
   //   href: "/settings/teams",
@@ -88,20 +78,21 @@ const tabs: VerticalTabItemProps[] = [
     href: "/settings/admin",
     icon: FiLock,
     children: [
-      //
+      { name: "features", href: "/settings/admin/flags" },
+      // { name: "license", href: "/auth/setup?step=1" },
       { name: "impersonation", href: "/settings/admin/impersonation" },
       { name: "apps", href: "/settings/admin/apps/calendar" },
-      { name: "users", href: "/settings/admin/users" },
+      // { name: "users", href: "https://console.cal.com" },
     ],
   },
 ];
 
-// tabs.find((tab) => {
-//   // Add "SAML SSO" to the tab
-//   if (tab.name === "security" && !HOSTED_CAL_FEATURES) {
-//     tab.children?.push({ name: "saml_config", href: "/settings/security/sso" });
-//   }
-// });
+tabs.find((tab) => {
+  // Add "SAML SSO" to the tab
+  if (tab.name === "security" && !HOSTED_CAL_FEATURES) {
+    tab.children?.push({ name: "saml_config", href: "/settings/security/sso" });
+  }
+});
 
 // The following keys are assigned to admin only
 const adminRequiredKeys = ["admin"];
@@ -130,7 +121,7 @@ const useTabs = () => {
 const BackButtonInSidebar = ({ name }: { name: string }) => {
   return (
     <Link
-      href="/event-types"
+      href="/"
       className="group my-6 flex h-6 max-h-6 w-64 flex-row items-center rounded-md py-2 px-3 text-sm font-medium leading-4 text-black hover:bg-gray-100 group-hover:text-gray-700 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900"
       data-testid={`vertical-tab-${name}`}>
       <FiArrowLeft className="h-4 w-4 stroke-[2px] ltr:mr-[10px] rtl:ml-[10px] md:mt-0" />
@@ -177,7 +168,7 @@ const SettingsSidebarContainer = ({
   return (
     <nav
       className={classNames(
-        "no-scrollbar fixed bottom-0 left-0 top-0 flex max-h-screen w-56 flex-col space-y-1 overflow-x-hidden overflow-y-scroll bg-gray-50 px-2 pb-3 transition-transform max-lg:z-10 lg:sticky lg:flex",
+        "no-scrollbar fixed bottom-0 left-0 top-0 z-20 flex max-h-screen w-56 flex-col space-y-1 overflow-x-hidden overflow-y-scroll bg-gray-50 px-2 pb-3 transition-transform max-lg:z-10 lg:sticky lg:flex",
         className,
         navigationIsOpenedOnMobile
           ? "translate-x-0 opacity-100"
@@ -190,7 +181,7 @@ const SettingsSidebarContainer = ({
           return tab.name !== "teams" ? (
             <React.Fragment key={tab.href}>
               <div className={`${!tab.children?.length ? "!mb-3" : ""}`}>
-                <div className="group flex h-9 w-64 flex-row items-center rounded-md px-3 text-sm font-medium leading-none text-gray-600 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900">
+                <div className="group flex h-9 w-64 flex-row items-center rounded-md px-2 text-sm font-medium leading-none text-gray-600 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900">
                   {tab && tab.icon && (
                     <tab.icon className="h-[16px] w-[16px] stroke-[2px] ltr:mr-3 rtl:ml-3 md:mt-0" />
                   )}
@@ -222,7 +213,7 @@ const SettingsSidebarContainer = ({
             <React.Fragment key={tab.href}>
               <div className={`${!tab.children?.length ? "mb-3" : ""}`}>
                 <Link href={tab.href}>
-                  <div className="group flex h-9 w-64 flex-row items-center rounded-md px-3 py-[10px] text-sm font-medium leading-none text-gray-600 hover:bg-gray-100  group-hover:text-gray-700 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900">
+                  <div className="group flex h-9 w-64 flex-row items-center rounded-md px-2 py-[10px] text-sm font-medium leading-none text-gray-600 hover:bg-gray-100  group-hover:text-gray-700 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900">
                     {tab && tab.icon && (
                       <tab.icon className="h-[16px] w-[16px] stroke-[2px] ltr:mr-3 rtl:ml-3 md:mt-0" />
                     )}
@@ -248,7 +239,7 @@ const SettingsSidebarContainer = ({
                           }>
                           <CollapsibleTrigger>
                             <div
-                              className="flex h-9 w-64 flex-row items-center rounded-md px-3 py-[10px] text-sm font-medium leading-none hover:bg-gray-100  group-hover:text-gray-700 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900"
+                              className="flex h-9 w-64 flex-row items-center rounded-md px-3 py-[10px] text-left text-sm font-medium leading-none  hover:bg-gray-100 group-hover:text-gray-700 [&[aria-current='page']]:bg-gray-200 [&[aria-current='page']]:text-gray-900"
                               onClick={() =>
                                 setTeamMenuState([
                                   ...teamMenuState,
@@ -266,7 +257,7 @@ const SettingsSidebarContainer = ({
                                 className="h-[16px] w-[16px] self-start rounded-full stroke-[2px] ltr:mr-2 rtl:ml-2 md:mt-0"
                                 alt={team.name || "Team logo"}
                               />
-                              <p>{team.name}</p>
+                              <p className="w-1/2 truncate">{team.name}</p>
                               {!team.accepted && (
                                 <Badge className="ltr:ml-3 rtl:mr-3" variant="orange">
                                   Inv.
@@ -304,20 +295,20 @@ const SettingsSidebarContainer = ({
                                   textClassNames="px-3 text-gray-900 font-medium text-sm"
                                   disableChevron
                                 />
-                                {/*<VerticalTabItem*/}
-                                {/*  name={t("billing")}*/}
-                                {/*  href={`/settings/teams/${team.id}/billing`}*/}
-                                {/*  textClassNames="px-3 text-gray-900 font-medium text-sm"*/}
-                                {/*  disableChevron*/}
-                                {/*/>*/}
-                                {/*{HOSTED_CAL_FEATURES && (*/}
-                                {/*  <VerticalTabItem*/}
-                                {/*    name={t("saml_config")}*/}
-                                {/*    href={`/settings/teams/${team.id}/sso`}*/}
-                                {/*    textClassNames="px-3 text-gray-900 font-medium text-sm"*/}
-                                {/*    disableChevron*/}
-                                {/*  />*/}
-                                {/*)}*/}
+                                <VerticalTabItem
+                                  name={t("billing")}
+                                  href={`/settings/teams/${team.id}/billing`}
+                                  textClassNames="px-3 text-gray-900 font-medium text-sm"
+                                  disableChevron
+                                />
+                                {HOSTED_CAL_FEATURES && (
+                                  <VerticalTabItem
+                                    name={t("saml_config")}
+                                    href={`/settings/teams/${team.id}/sso`}
+                                    textClassNames="px-3 text-gray-900 font-medium text-sm"
+                                    disableChevron
+                                  />
+                                )}
                               </>
                             )}
                           </CollapsibleContent>
@@ -327,7 +318,7 @@ const SettingsSidebarContainer = ({
                 <VerticalTabItem
                   name={t("add_a_team")}
                   href={`${WEBAPP_URL}/settings/teams/new`}
-                  textClassNames="px-3 text-gray-900 font-medium text-sm"
+                  textClassNames="px-3 items-center mt-2 text-gray-900 font-medium text-sm"
                   icon={FiPlus}
                   disableChevron
                 />
@@ -342,6 +333,7 @@ const SettingsSidebarContainer = ({
 
 const MobileSettingsContainer = (props: { onSideContainerOpen?: () => void }) => {
   const { t } = useLocale();
+  const router = useRouter();
 
   return (
     <>
@@ -351,12 +343,12 @@ const MobileSettingsContainer = (props: { onSideContainerOpen?: () => void }) =>
             <span className="sr-only">{t("show_navigation")}</span>
           </Button>
 
-          <a
-            href="/"
-            className="flex items-center space-x-2 rounded-md px-3 py-1 hover:bg-gray-200 rtl:space-x-reverse">
+          <button
+            className="flex items-center space-x-2 rounded-md px-3 py-1 hover:bg-gray-200 rtl:space-x-reverse"
+            onClick={() => router.back()}>
             <FiArrowLeft className="text-gray-700" />
             <p className="font-semibold text-black">{t("settings")}</p>
-          </a>
+          </button>
         </div>
       </nav>
     </>
@@ -451,7 +443,7 @@ function ShellHeader() {
             <div className="mb-1 h-6 w-32 animate-pulse rounded-md bg-gray-200" />
           )}
         </div>
-        <div className="ml-auto">{meta.CTA}</div>
+        <div className="flex-shrink-0 ltr:ml-auto rtl:mr-auto">{meta.CTA}</div>
       </div>
     </header>
   );

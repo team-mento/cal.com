@@ -1,9 +1,13 @@
 import { ArrowRightIcon } from "@heroicons/react/outline";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import dayjs from "@calcom/dayjs";
+import { FULL_NAME_LENGTH_MAX_LIMIT } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { trpc } from "@calcom/trpc/react";
 import { Button, TimezoneSelect } from "@calcom/ui";
 
@@ -20,18 +24,30 @@ const UserSettings = (props: IUserSettingsProps) => {
   const { user, nextStep } = props;
   const { t } = useLocale();
   const [selectedTimeZone, setSelectedTimeZone] = useState(dayjs.tz.guess());
-
+  const telemetry = useTelemetry();
+  const userSettingsSchema = z.object({
+    name: z
+      .string()
+      .min(1)
+      .max(FULL_NAME_LENGTH_MAX_LIMIT, {
+        message: t("max_limit_allowed_hint", { limit: FULL_NAME_LENGTH_MAX_LIMIT }),
+      }),
+  });
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({
+  } = useForm<z.infer<typeof userSettingsSchema>>({
     defaultValues: {
       name: user?.name || "",
     },
     reValidateMode: "onChange",
+    resolver: zodResolver(userSettingsSchema),
   });
-  const defaultOptions = { required: true, maxLength: 255 };
+
+  useEffect(() => {
+    telemetry.event(telemetryEventTypes.onboardingStarted);
+  }, [telemetry]);
 
   const utils = trpc.useContext();
   const onSuccess = async () => {
@@ -45,8 +61,6 @@ const UserSettings = (props: IUserSettingsProps) => {
   const onSubmit = handleSubmit((data) => {
     mutation.mutate({
       name: data.name,
-      bio: user?.bio || undefined,
-      avatar: user?.avatar || undefined,
       timeZone: selectedTimeZone,
     });
   });
@@ -58,25 +72,27 @@ const UserSettings = (props: IUserSettingsProps) => {
         <UsernameAvailabilityField user={user} />
 
         {/* Full name textfield */}
-        {/*<div className="w-full">*/}
-        {/*  <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-700">*/}
-        {/*    {t("full_name")}*/}
-        {/*  </label>*/}
-        {/*  <input*/}
-        {/*    {...register("name", defaultOptions)}*/}
-        {/*    id="name"*/}
-        {/*    name="name"*/}
-        {/*    type="text"*/}
-        {/*    autoComplete="off"*/}
-        {/*    autoCorrect="off"*/}
-        {/*    className="w-full rounded-md border border-gray-300 text-sm"*/}
-        {/*  />*/}
-        {/*  {errors.name && (*/}
-        {/*    <p data-testid="required" className="py-2 text-xs text-red-500">*/}
-        {/*      {t("required")}*/}
-        {/*    </p>*/}
-        {/*  )}*/}
-        {/*</div>*/}
+        <div className="w-full">
+          <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-700">
+            {t("full_name")}
+          </label>
+          <input
+            {...register("name", {
+              required: true,
+            })}
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            className="w-full rounded-md border border-gray-300 text-sm"
+          />
+          {errors.name && (
+            <p data-testid="required" className="py-2 text-xs text-red-500">
+              {errors.name.message}
+            </p>
+          )}
+        </div>
         {/* Timezone select field */}
         <div className="w-full">
           <label htmlFor="timeZone" className="block text-sm font-medium text-gray-700">

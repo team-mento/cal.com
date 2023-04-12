@@ -1,13 +1,16 @@
+// @TODO: turn this into a more generic component that has the same Props API as MUI https://mui.com/material-ui/react-card/
 import Link from "next/link";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import React from "react";
 
 import classNames from "@calcom/lib/classNames";
+import { FiArrowRight } from "@calcom/ui/components/icon";
 
 import { Button } from "../button";
 
 export type BaseCardProps = {
   image?: string;
+  icon?: ReactNode;
   variant: keyof typeof cardTypeByVariant;
   imageProps?: JSX.IntrinsicElements["img"];
   title: string;
@@ -26,11 +29,13 @@ export type BaseCardProps = {
   thumbnailUrl?: string;
 };
 
+// @TODO: use CVA
+
 const cardTypeByVariant = {
-  AppStore: {
+  basic: {
     image: "w-10 h-auto",
-    card: "p-5 w-64",
-    title: "text-base",
+    card: "p-5",
+    title: "text-base mt-4",
     description: "text-sm leading-[18px] text-gray-500 font-normal",
   },
   ProfileCard: {
@@ -50,6 +55,7 @@ const cardTypeByVariant = {
 export function Card({
   image,
   title,
+  icon,
   description,
   variant,
   actionButton,
@@ -59,38 +65,42 @@ export function Card({
   thumbnailUrl,
   learnMore,
 }: BaseCardProps) {
+  const LinkComponent = learnMore && learnMore.href.startsWith("https") ? "a" : Link;
   return (
     <div
       className={classNames(
         containerProps?.className,
         cardTypeByVariant[variant].card,
-        "rounded-md border border-gray-200 bg-white"
+        "flex flex-col justify-between rounded-md border border-gray-200 bg-white"
       )}
       {...containerProps}>
-      {image && (
-        <img
-          src={image}
-          // Stops eslint complaining - not smart enough to realise it comes from ...imageProps
-          alt={imageProps?.alt}
-          className={classNames(imageProps?.className, cardTypeByVariant[variant].image, "mb-4")}
-          {...imageProps}
-        />
-      )}
-      <h5
-        title={title}
-        className={classNames(
-          cardTypeByVariant[variant].title,
-          "line-clamp-1 font-bold leading-5 text-gray-900"
-        )}>
-        {title}
-      </h5>
-      {description && (
-        <p
-          title={description.toString()}
-          className={classNames(cardTypeByVariant[variant].description, "pt-1")}>
-          {description}
-        </p>
-      )}
+      <div>
+        {icon && icon}
+        {image && (
+          <img
+            src={image}
+            // Stops eslint complaining - not smart enough to realise it comes from ...imageProps
+            alt={imageProps?.alt}
+            className={classNames(imageProps?.className, cardTypeByVariant[variant].image)}
+            {...imageProps}
+          />
+        )}
+        <h5
+          title={title}
+          className={classNames(
+            cardTypeByVariant[variant].title,
+            "line-clamp-1 font-bold leading-5 text-gray-900"
+          )}>
+          {title}
+        </h5>
+        {description && (
+          <p
+            title={description.toString()}
+            className={classNames(cardTypeByVariant[variant].description, "pt-1")}>
+            {description}
+          </p>
+        )}
+      </div>
       {variant === "SidebarCard" && (
         <a
           onClick={actionButton?.onClick}
@@ -120,23 +130,27 @@ export function Card({
           <img alt="play feature video" src={thumbnailUrl} />
         </a>
       )}
-      {variant === "AppStore" && (
-        <Button color="secondary" href={actionButton?.href} size="lg" className="mt-10 w-full">
-          {/* Force it to be centered as this usecase of a button is off - doesnt meet normal sizes */}
-          <div className="mx-auto">{actionButton?.child}</div>
-        </Button>
-      )}
+
+      {/* TODO: this should be CardActions https://mui.com/material-ui/api/card-actions/ */}
+      <div>
+        {variant === "basic" && (
+          <Button color="secondary" href={actionButton?.href} className="mt-10" EndIcon={FiArrowRight}>
+            {actionButton?.child}
+          </Button>
+        )}
+      </div>
+
       {variant === "SidebarCard" && (
         <div className="mt-2 flex items-center justify-between">
           {learnMore && (
-            <Link
+            <LinkComponent
               href={learnMore.href}
               onClick={actionButton?.onClick}
               target="_blank"
               rel="noreferrer"
               className="text-xs font-medium">
               {learnMore.text}
-            </Link>
+            </LinkComponent>
           )}
           <button
             className="p-0 text-xs font-normal text-gray-600 hover:text-gray-800"
