@@ -449,6 +449,8 @@ export const eventTypesRouter = router({
     });
   }),
   create: authedProcedure.input(createEventTypeInput).mutation(async ({ ctx, input }) => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     const { schedulingType, teamId, metadata, ...rest } = input;
     const userId = ctx.user.id;
     const isManagedEventType = schedulingType === SchedulingType.MANAGED;
@@ -457,7 +459,7 @@ export const eventTypesRouter = router({
     const defaultConferencingData = userMetadataSchema.parse(ctx.user.metadata)?.defaultConferencingApp;
     const appKeys = await getAppKeysFromSlug("daily-video");
 
-    let locations: { type: string; link?: string }[] = rest.locations || [];
+    let locations: { type: string; link?: string }[] = [];
 
     // If no locations are passed in and the user has a daily api key then default to daily
     if (

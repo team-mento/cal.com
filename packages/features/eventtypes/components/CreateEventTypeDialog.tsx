@@ -15,7 +15,6 @@ import { HttpError } from "@calcom/lib/http-error";
 import { md } from "@calcom/lib/markdownIt";
 import slugify from "@calcom/lib/slugify";
 import turndown from "@calcom/lib/turndownService";
-import { unlockedManagedEventTypeProps } from "@calcom/prisma/zod-utils";
 import { createEventTypeInput } from "@calcom/prisma/zod/custom/eventtype";
 import { trpc } from "@calcom/trpc/react";
 import {
@@ -97,8 +96,12 @@ export default function CreateEventTypeDialog({
 
   useEffect(() => {
     if (isManagedEventType) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
       form.setValue("metadata.managedEventConfig.unlockedFields", unlockedManagedEventTypeProps);
     } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //@ts-ignore
       form.setValue("metadata", null);
     }
   }, [schedulingTypeWatch]);
