@@ -139,7 +139,7 @@ const UserProfile = (props: IUserProfileProps) => {
           name="avatar"
           id="avatar"
           placeholder="URL"
-          className="mt-1 block w-full rounded-sm border border-gray-300 px-3 py-2 text-sm focus:border-gray-800 focus:outline-none focus:ring-gray-800"
+          className="border-default focus:ring-empthasis mt-1 block w-full rounded-sm border px-3 py-2 text-sm focus:border-gray-800 focus:outline-none"
           defaultValue={imageSrc}
         />
         <div className="flex items-center px-4">
@@ -164,13 +164,13 @@ const UserProfile = (props: IUserProfileProps) => {
         </div>
       </div>
       <fieldset className="mt-8">
-        <Label className="mb-2 block text-sm font-medium text-gray-700">{t("about")}</Label>
+        <Label className="text-default mb-2 block text-sm font-medium">{t("about")}</Label>
         <Editor
           getText={() => md.render(getValues("bio") || user?.bio || "")}
           setText={(value: string) => setValue("bio", turndown(value))}
           excludedToolbarItems={["blockType", "bold", "italic", "link"]}
         />
-        <p className="mt-2 font-sans text-sm font-normal text-gray-600 dark:text-white">
+        <p className="dark:text-inverted text-default mt-2 font-sans text-sm font-normal">
           {t("few_sentences_about_yourself")}
         </p>
       </fieldset>

@@ -449,10 +449,11 @@ function getBookingData({
   const reqBody = bookingDataSchema.parse(req.body);
   if ("responses" in reqBody) {
     const responses = reqBody.responses;
-    const { calEventUserFieldsResponses, calEventResponses } = getCalEventResponses({
-      bookingFields: eventType.bookingFields,
-      responses,
-    });
+    const { userFieldsResponses: calEventUserFieldsResponses, responses: calEventResponses } =
+      getCalEventResponses({
+        bookingFields: eventType.bookingFields,
+        responses,
+      });
     return {
       ...reqBody,
       name: responses.name,
@@ -793,6 +794,7 @@ async function handler(
   const uid = translator.fromUUID(uuidv5(seed, uuidv5.URL));
 
   const bookingLocation = getLocationValueForDB(locationBodyString, eventType.locations);
+
   const customInputs = getCustomInputsResponses(reqBody, eventType.customInputs);
   const teamMemberPromises =
     users.length > 1
@@ -934,7 +936,7 @@ async function handler(
               integrationsToDelete.push(deleteMeeting(credential, reference.uid));
             }
             if (reference.type.includes("_calendar") && originalBookingEvt) {
-              const calendar = getCalendar(credential);
+              const calendar = await getCalendar(credential);
               if (calendar) {
                 integrationsToDelete.push(
                   calendar?.deleteEvent(reference.uid, originalBookingEvt, reference.externalCalendarId)
@@ -1461,7 +1463,8 @@ async function handler(
           evt,
           eventType,
           eventTypePaymentAppCredential as IEventTypePaymentCredentialType,
-          booking
+          booking,
+          bookerEmail
         );
 
         return {
@@ -1630,11 +1633,10 @@ async function handler(
     }
 
     if (typeof paymentAppData.price === "number" && paymentAppData.price > 0) {
-      /* Validate if there is any stripe_payment credential for this user */
-      /*  note: removes custom error message about stripe */
+      /* Validate if there is any payment app credential for this user */
       await prisma.credential.findFirstOrThrow({
         where: {
-          type: "stripe_payment",
+          appId: paymentAppData.appId,
           userId: organizerUser.id,
         },
         select: {
@@ -1895,17 +1897,18 @@ async function handler(
     }
   }
 
-  if (!isConfirmedByDefault && noEmail !== true) {
+  const bookingRequiresPayment =
+    !Number.isNaN(paymentAppData.price) &&
+    paymentAppData.price > 0 &&
+    !originalRescheduledBooking?.paid &&
+    !!booking;
+
+  if (!isConfirmedByDefault && noEmail !== true && !bookingRequiresPayment) {
     await sendOrganizerRequestEmail({ ...evt, additionalNotes });
     await sendAttendeeRequestEmail({ ...evt, additionalNotes }, attendeesList[0]);
   }
 
-  if (
-    !Number.isNaN(paymentAppData.price) &&
-    paymentAppData.price > 0 &&
-    !originalRescheduledBooking?.paid &&
-    !!booking
-  ) {
+  if (bookingRequiresPayment) {
     // Load credentials.app.categories
     const credentialPaymentAppCategories = await prisma.credential.findMany({
       where: {
@@ -1941,7 +1944,8 @@ async function handler(
       evt,
       eventType,
       eventTypePaymentAppCredential as IEventTypePaymentCredentialType,
-      booking
+      booking,
+      bookerEmail
     );
 
     req.statusCode = 201;
