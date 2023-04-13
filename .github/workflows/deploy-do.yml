@@ -5,6 +5,7 @@ on:
     branches:
       - 'develop'
       - 'release'
+      - 'fix-release'
 
 jobs:
   docker:
@@ -70,7 +71,7 @@ jobs:
       - name: Registry login
         run: doctl registry login
       - name: Tag and push image to stage
-        if: github.ref_name == 'develop'
+        if: github.ref_name == 'fix-release'
         run: |
           docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:stage
           docker push registry.digitalocean.com/mento/docker_calcom:stage
