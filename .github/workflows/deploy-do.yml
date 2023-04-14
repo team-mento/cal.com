@@ -6,6 +6,7 @@ on:
       - 'develop'
       - 'release'
       - 'fix-release'
+      - 'old-release'
 
 jobs:
   docker:
