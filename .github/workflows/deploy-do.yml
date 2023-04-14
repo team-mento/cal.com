@@ -76,7 +76,7 @@ jobs:
           docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:stage
           docker push registry.digitalocean.com/mento/docker_calcom:stage
       - name: Tag and push image to prod
-        if: github.ref_name == 'release'
+        if: github.ref_name == 'old-release'
         run: |
           docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:latest
           docker push registry.digitalocean.com/mento/docker_calcom:latest
