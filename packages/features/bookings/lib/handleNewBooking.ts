@@ -199,7 +199,6 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
       customInputs: true,
       disableGuests: true,
       users: userSelect,
-      slug: true,
       team: {
         select: {
           id: true,
