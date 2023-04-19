@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
@@ -31,15 +31,16 @@ import getLocationOptionsForSelect from "@calcom/features/bookings/lib/getLocati
 import { FormBuilderField } from "@calcom/features/form-builder/FormBuilder";
 import { bookingSuccessRedirect } from "@calcom/lib/bookingSuccessRedirect";
 import classNames from "@calcom/lib/classNames";
-import { APP_NAME } from "@calcom/lib/constants";
+import { APP_NAME, MINUTES_TO_BOOK } from "@calcom/lib/constants";
 import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import { useTypedQuery } from "@calcom/lib/hooks/useTypedQuery";
 import { HttpError } from "@calcom/lib/http-error";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
-import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
+import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { TimeFormat } from "@calcom/lib/timeFormat";
+import { trpc } from "@calcom/trpc";
 import { Button, Form, Logo, Tooltip, useCalcomTheme } from "@calcom/ui";
 import { AlertTriangle, Calendar, RefreshCw, User } from "@calcom/ui/components/icon";
 
@@ -47,7 +48,7 @@ import { timeZone } from "@lib/clock";
 import useRouterQuery from "@lib/hooks/useRouterQuery";
 import createBooking from "@lib/mutations/bookings/create-booking";
 import createRecurringBooking from "@lib/mutations/bookings/create-recurring-booking";
-import { parseDate, parseRecurringDates } from "@lib/parseDate";
+import { parseRecurringDates, parseDate } from "@lib/parseDate";
 
 import type { Gate, GateState } from "@components/Gates";
 import Gates from "@components/Gates";
@@ -209,9 +210,12 @@ const BookingPage = ({
   hashedLink,
   ...restProps
 }: BookingPageProps) => {
+  const removeSelectedSlotMarkMutation = trpc.viewer.public.slots.removeSelectedSlotMark.useMutation();
+  const reserveSlotMutation = trpc.viewer.public.slots.reserveSlot.useMutation();
   const { t, i18n } = useLocale();
   const { duration: queryDuration } = useRouterQuery("duration");
-  const isEmbed = false;
+  const { date: queryDate } = useRouterQuery("date");
+  const isEmbed = false; // useIsEmbed(restProps.isEmbed);
   const embedUiConfig = useEmbedUiConfig();
   const shouldAlignCentrallyInEmbed = useEmbedNonStylesConfig("align") !== "left";
   const shouldAlignCentrally = !isEmbed || shouldAlignCentrallyInEmbed;
@@ -226,6 +230,15 @@ const BookingPage = ({
     }),
     {}
   );
+  const reserveSlot = () => {
+    if (queryDuration) {
+      reserveSlotMutation.mutate({
+        eventTypeId: eventType.id,
+        slotUtcStartDate: dayjs(queryDate).utc().format(),
+        slotUtcEndDate: dayjs(queryDate).utc().add(parseInt(queryDuration), "minutes").format(),
+      });
+    }
+  };
   // Define duration now that we support multiple duration eventTypes
   let duration = eventType.length;
   if (
@@ -238,13 +251,19 @@ const BookingPage = ({
   }
 
   useEffect(() => {
-    if (top !== window) {
+    /* if (top !== window) {
       //page_view will be collected automatically by _middleware.ts
       telemetry.event(
         telemetryEventTypes.embedView,
         collectPageParameters("/book", { isTeamBooking: document.URL.includes("team/") })
       );
-    }
+    } */
+    reserveSlot();
+    const interval = setInterval(reserveSlot, parseInt(MINUTES_TO_BOOK) * 60 * 1000 - 2000);
+    return () => {
+      clearInterval(interval);
+      removeSelectedSlotMarkMutation.mutate();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -520,9 +539,9 @@ const BookingPage = ({
       <BookingPageTagManager eventType={eventType} />
       <main
         className={classNames(
-          "my-12 flex flex-col md:mx-4",
-          shouldAlignCentrally ? "items-center" : "items-start",
-          !isEmbed && classNames("mx-auto my-0 ease-in-out md:my-24")
+          shouldAlignCentrally ? "mx-auto" : "",
+          isEmbed ? "" : "sm:my-24",
+          "my-12 max-w-3xl"
         )}>
         <div className="flex justify-center md:mb-4">
           <Logo />
@@ -530,8 +549,8 @@ const BookingPage = ({
         <div
           className={classNames(
             "main",
-            isBackgroundTransparent ? "" : "dark:bg-darkgray-100 bg-default dark:border",
-            "border-subtle rounded-md sm:border"
+            isBackgroundTransparent ? "" : "bg-default dark:bg-muted",
+            "border-booker sm:border-booker-width rounded-md"
           )}>
           <div className="sm:flex">
             {showEventTypeDetails && (
@@ -652,9 +671,9 @@ const BookingPage = ({
                   </Button>
                 </div>
               </Form>
-              {(mutation.isError || recurringMutation.isError) && (
+              {mutation.isError || recurringMutation.isError ? (
                 <ErrorMessage error={mutation.error || recurringMutation.error} />
-              )}
+              ) : null}
             </div>
           </div>
         </div>

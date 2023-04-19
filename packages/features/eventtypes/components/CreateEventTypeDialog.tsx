@@ -4,6 +4,7 @@ import { MembershipRole } from "@prisma/client";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -78,6 +79,7 @@ export default function CreateEventTypeDialog({
 }) {
   const { t } = useLocale();
   const router = useRouter();
+  const [firstRender, setFirstRender] = useState(true);
 
   const {
     data: { teamId, eventPage: pageSlug },
@@ -224,6 +226,8 @@ export default function CreateEventTypeDialog({
                   setText={(value: string) => form.setValue("description", turndown(value))}
                   excludedToolbarItems={["blockType", "link"]}
                   placeholder={t("quick_video_meeting")}
+                  firstRender={firstRender}
+                  setFirstRender={setFirstRender}
                 />
 
                 <div className="relative">

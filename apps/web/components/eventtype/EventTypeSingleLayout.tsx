@@ -50,6 +50,7 @@ import {
 } from "@calcom/ui/components/icon";
 
 import { EmbedButton, EmbedDialog } from "@components/Embed";
+import type { AvailabilityOption } from "@components/eventtype/EventAvailabilityTab";
 
 type Props = {
   children: React.ReactNode;
@@ -62,6 +63,7 @@ type Props = {
   enabledWorkflowsNumber: number;
   formMethods: UseFormReturn<FormValues>;
   isUpdateMutationLoading?: boolean;
+  availability?: AvailabilityOption;
 };
 
 function getNavigation(props: {
@@ -70,8 +72,10 @@ function getNavigation(props: {
   enabledAppsNumber: number;
   enabledWorkflowsNumber: number;
   installedAppsNumber: number;
+  availability: AvailabilityOption | undefined;
 }) {
-  const { eventType, t, enabledAppsNumber, installedAppsNumber, enabledWorkflowsNumber } = props;
+  const { eventType, t, enabledAppsNumber, installedAppsNumber, enabledWorkflowsNumber, availability } =
+    props;
   const duration =
     eventType.metadata?.multipleDuration?.map((duration) => ` ${duration}`) || eventType.length;
 
@@ -127,6 +131,7 @@ function EventTypeSingleLayout({
   enabledWorkflowsNumber,
   isUpdateMutationLoading,
   formMethods,
+  availability,
 }: Props) {
   const utils = trpc.useContext();
   const { t } = useLocale();
@@ -170,6 +175,7 @@ function EventTypeSingleLayout({
       enabledAppsNumber,
       installedAppsNumber,
       enabledWorkflowsNumber,
+      availability,
     });
     navigation.splice(1, 0, {
       name: "availability",
@@ -213,7 +219,7 @@ function EventTypeSingleLayout({
       });
     }
     return navigation;
-  }, [t, eventType, installedAppsNumber, enabledAppsNumber, enabledWorkflowsNumber, team]);
+  }, [t, eventType, installedAppsNumber, enabledAppsNumber, enabledWorkflowsNumber, team, availability]);
 
   const permalink = `${CAL_URL}/${team ? `team/${team.slug}` : eventType.users[0].username}/${
     eventType.slug
@@ -373,6 +379,8 @@ function EventTypeSingleLayout({
               tabs={EventTypeTabs}
               sticky
               linkProps={{ shallow: true }}
+              itemClassname="items-start"
+              iconClassName="md:mt-px"
             />
           </div>
           <div className="p-2 md:mx-0 md:p-0 xl:hidden">

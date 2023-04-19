@@ -24,6 +24,7 @@ import type { WithNonceProps } from "@lib/withNonce";
 import withNonce from "@lib/withNonce";
 
 import AddToHomescreen from "@components/AddToHomescreen";
+import PageWrapper from "@components/PageWrapper";
 import AuthContainer from "@components/ui/AuthContainer";
 
 import { IS_GOOGLE_LOGIN_ENABLED } from "@server/lib/constants";
@@ -162,11 +163,11 @@ export default function Login({
           {/*        {...register("email")}*/}
           {/*      />*/}
           {/*      <div className="relative">*/}
-          {/*        <div className="absolute -top-[6px]  z-10 ltr:right-0 rtl:left-0">*/}
+          {/*        <div className="z-5 absolute -top-1.5 ltr:right-0 rtl:left-0">*/}
           {/*          <Link*/}
           {/*            href="/auth/forgot-password"*/}
           {/*            tabIndex={-1}*/}
-          {/*            className="text-sm font-medium text-gray-600">*/}
+          {/*            className="text-default text-sm font-medium">*/}
           {/*            {t("forgot")}*/}
           {/*          </Link>*/}
           {/*        </div>*/}
@@ -179,9 +180,7 @@ export default function Login({
           {/*        />*/}
           {/*      </div>*/}
           {/*    </div>*/}
-
           {/*    {twoFactorRequired && <TwoFactor center />}*/}
-
           {/*    {errorMessage && <Alert severity="error" title={errorMessage} />}*/}
           {/*    <Button*/}
           {/*      type="submit"*/}
@@ -194,7 +193,7 @@ export default function Login({
           {/*</form>*/}
           {/*{!twoFactorRequired && (*/}
           {/*  <>*/}
-          {/*{(isGoogleLoginEnabled || isSAMLLoginEnabled) && <hr className="my-8" />}*/}
+          {/*    {(isGoogleLoginEnabled || isSAMLLoginEnabled) && <hr className="border-subtle my-8" />}*/}
           <div className="space-y-3">
             {isGoogleLoginEnabled && (
               <Button
@@ -300,5 +299,6 @@ const _getServerSideProps = async function getServerSideProps(context: GetServer
 };
 
 Login.isThemeSupported = false;
+Login.PageWrapper = PageWrapper;
 
 export const getServerSideProps = withNonce(_getServerSideProps);

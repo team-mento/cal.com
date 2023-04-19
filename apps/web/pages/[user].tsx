@@ -3,15 +3,9 @@ import classNames from "classnames";
 import type { GetServerSidePropsContext } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 
-import {
-  sdkActionManager,
-  useEmbedNonStylesConfig,
-  useEmbedStyles,
-  useIsEmbed,
-} from "@calcom/embed-core/embed-iframe";
+import { sdkActionManager, useEmbedNonStylesConfig, useEmbedStyles } from "@calcom/embed-core/embed-iframe";
 import { EventTypeDescriptionLazy as EventTypeDescription } from "@calcom/features/eventtypes/components";
 import EmptyPage from "@calcom/features/eventtypes/components/EmptyPage";
 import { WEBAPP_URL } from "@calcom/lib/constants";
@@ -24,7 +18,6 @@ import defaultEvents, {
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
-import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import prisma from "@calcom/prisma";
 import { baseEventTypeSelect } from "@calcom/prisma/selects";
 import { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
@@ -33,6 +26,8 @@ import { ArrowRight } from "@calcom/ui/components/icon";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
 import type { EmbedProps } from "@lib/withEmbedSsr";
+
+import PageWrapper from "@components/PageWrapper";
 
 import { ssrInit } from "@server/lib/ssr";
 
@@ -86,21 +81,22 @@ export default function User(props: inferSSRProps<typeof getServerSideProps> & E
     </ul>
   );
 
-  const isEmbed = useIsEmbed(props.isEmbed);
+  const isEmbed = false; // useIsEmbed(props.isEmbed);
   const eventTypeListItemEmbedStyles = useEmbedStyles("eventTypeListItem");
   const shouldAlignCentrallyInEmbed = useEmbedNonStylesConfig("align") !== "left";
   const shouldAlignCentrally = !isEmbed || shouldAlignCentrallyInEmbed;
   const query = { ...router.query };
   delete query.user; // So it doesn't display in the Link (and make tests fail)
   const nameOrUsername = user.name || user.username || "";
-  const telemetry = useTelemetry();
 
-  useEffect(() => {
+  /*
+   const telemetry = useTelemetry();
+   useEffect(() => {
     if (top !== window) {
       //page_view will be collected automatically by _middleware.ts
       telemetry.event(telemetryEventTypes.embedView, collectPageParameters("/[user]"));
     }
-  }, [telemetry, router.asPath]);
+  }, [telemetry, router.asPath]); */
   const isEventListEmpty = eventTypes.length === 0;
   return (
     <>
@@ -118,8 +114,13 @@ export default function User(props: inferSSRProps<typeof getServerSideProps> & E
         }}
       />
 
-      <div className={classNames(shouldAlignCentrally ? "mx-auto" : "", "dark:bg-darkgray-50")}>
-        <main className={classNames(shouldAlignCentrally ? "mx-auto" : "", "max-w-3xl py-24 px-4")}>
+      <div className={classNames(shouldAlignCentrally ? "mx-auto" : "", isEmbed ? "max-w-3xl" : "")}>
+        <main
+          className={classNames(
+            shouldAlignCentrally ? "mx-auto" : "",
+            isEmbed ? " border-booker border-booker-width  bg-default rounded-md border" : "",
+            "max-w-3xl py-24 px-4"
+          )}>
           {isSingleUser && ( // When we deal with a single user, not dynamic group
             <div className="mb-8 text-center">
               <Avatar imageSrc={user.avatar} size="xl" alt={nameOrUsername} />
@@ -190,6 +191,9 @@ export default function User(props: inferSSRProps<typeof getServerSideProps> & E
     </>
   );
 }
+
+User.isBookingPage = true;
+User.PageWrapper = PageWrapper;
 
 const getEventTypesWithHiddenFromDB = async (userId: number) => {
   return (

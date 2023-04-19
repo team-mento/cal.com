@@ -2,7 +2,7 @@ const plugin = require("tailwindcss/plugin");
 const { fontFamily } = require("tailwindcss/defaultTheme");
 
 /** @type {import('tailwindcss').Config} */
-
+const subtleColor = "#E5E7EB";
 module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx}",
@@ -26,9 +26,10 @@ module.exports = {
         error: "var(--cal-bg-error)",
         black: "#111111",
         brand: {
-          default: "var(--cal-brand,'#637A6F')",
-          emphasis: "var(--cal-brand-emphasis,'#505A54')",
-          subtle: "var(--cal-brand-subtle,'#EDF2F0')",
+          default: "var(--cal-brand,#637A6F)",
+          emphasis: "var(--cal-brand-emphasis,#505A54)",
+          subtle: "var(--cal-brand-subtle,#EDF2F0)",
+          accent: "var(--cal-brand-accent,white)",
         },
         gray: {
           50: "#F9FAFB",
@@ -75,8 +76,9 @@ module.exports = {
       borderColor: {
         emphasis: "var(--cal-border-emphasis, #9CA3AF)",
         default: "var(--cal-border, #D1D5DB)",
-        subtle: "var(--cal-border-subtle, #E5E7EB)",
+        subtle: `var(--cal-border-subtle, ${subtleColor})`,
         muted: "var(--cal-border-muted, #F3F4F6)",
+        booker: `var(--cal-border-booker, ${subtleColor})`,
       },
       textColor: {
         emphasis: "var(--cal-text-emphasis, #111827)",
@@ -123,6 +125,9 @@ module.exports = {
       boxShadow: {
         dropdown: "0px 2px 6px -1px rgba(0, 0, 0, 0.08)",
       },
+      borderWidth: {
+        "booker-width": "var(--cal-border-booker-width, 1px)",
+      },
       fontFamily: {
         cal: ["var(--font-cal)", ...fontFamily.serif],
         sans: ["var(--font-inter)", ...fontFamily.sans],
@@ -162,7 +167,6 @@ module.exports = {
   plugins: [
     require("@tailwindcss/forms"),
     require("@tailwindcss/typography"),
-    require("@tailwindcss/line-clamp"),
     require("tailwind-scrollbar"),
     require("tailwindcss-radix")(),
     plugin(({ addVariant }) => {
