@@ -755,12 +755,8 @@ async function handler(
         }),
       },
       {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        email: reqBody.email,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        guests: reqBody.guests,
+        email: reqBody?.responses?.email || "",
+        guests: reqBody?.responses?.guests || [],
         dateFrom: reqBody.start,
         dateTo: reqBody.end,
         timeZone: reqBody.timeZone,
