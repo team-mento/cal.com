@@ -2,7 +2,7 @@ import { create } from "@storybook/theming";
 
 export default create({
   base: "light",
-  colorPrimary: "#111827",
+  colorPrimary: "#637A6F",
   colorSecondary: "#111827",
   appContentBg: "#F9FAFC",
   brandTitle: "Cal.com UI",

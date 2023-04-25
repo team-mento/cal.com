@@ -2,6 +2,7 @@ import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
 import { getCsrfToken, signIn } from "next-auth/react";
 import { useRouter } from "next/router";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { FaGoogle } from "react-icons/fa";
@@ -16,13 +17,14 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import prisma from "@calcom/prisma";
 import { Button } from "@calcom/ui";
-import { FiArrowLeft } from "@calcom/ui/components/icon";
+import { ArrowLeft } from "@calcom/ui/components/icon";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
 import type { WithNonceProps } from "@lib/withNonce";
 import withNonce from "@lib/withNonce";
 
 import AddToHomescreen from "@components/AddToHomescreen";
+import PageWrapper from "@components/PageWrapper";
 import AuthContainer from "@components/ui/AuthContainer";
 
 import { IS_GOOGLE_LOGIN_ENABLED } from "@server/lib/constants";
@@ -88,7 +90,7 @@ export default function Login({
         setTwoFactorRequired(false);
         methods.setValue("totpCode", "");
       }}
-      StartIcon={FiArrowLeft}
+      StartIcon={ArrowLeft}
       color="minimal">
       {t("go_back")}
     </Button>
@@ -122,7 +124,15 @@ export default function Login({
   };
 
   return (
-    <>
+    <div
+      style={
+        {
+          "--cal-brand": "#111827",
+          "--cal-brand-emphasis": "#101010",
+          "--cal-brand-text": "white",
+          "--cal-brand-subtle": "#9CA3AF",
+        } as CSSProperties
+      }>
       <AuthContainer
         title={t("login")}
         description={t("login")}
@@ -153,11 +163,11 @@ export default function Login({
           {/*        {...register("email")}*/}
           {/*      />*/}
           {/*      <div className="relative">*/}
-          {/*        <div className="absolute -top-[6px]  z-10 ltr:right-0 rtl:left-0">*/}
+          {/*        <div className="z-5 absolute -top-1.5 ltr:right-0 rtl:left-0">*/}
           {/*          <Link*/}
           {/*            href="/auth/forgot-password"*/}
           {/*            tabIndex={-1}*/}
-          {/*            className="text-sm font-medium text-gray-600">*/}
+          {/*            className="text-default text-sm font-medium">*/}
           {/*            {t("forgot")}*/}
           {/*          </Link>*/}
           {/*        </div>*/}
@@ -170,9 +180,7 @@ export default function Login({
           {/*        />*/}
           {/*      </div>*/}
           {/*    </div>*/}
-
           {/*    {twoFactorRequired && <TwoFactor center />}*/}
-
           {/*    {errorMessage && <Alert severity="error" title={errorMessage} />}*/}
           {/*    <Button*/}
           {/*      type="submit"*/}
@@ -185,7 +193,7 @@ export default function Login({
           {/*</form>*/}
           {/*{!twoFactorRequired && (*/}
           {/*  <>*/}
-          {/*{(isGoogleLoginEnabled || isSAMLLoginEnabled) && <hr className="my-8" />}*/}
+          {/*    {(isGoogleLoginEnabled || isSAMLLoginEnabled) && <hr className="border-subtle my-8" />}*/}
           <div className="space-y-3">
             {isGoogleLoginEnabled && (
               <Button
@@ -213,7 +221,7 @@ export default function Login({
         </FormProvider>
       </AuthContainer>
       <AddToHomescreen />
-    </>
+    </div>
   );
 }
 
@@ -289,5 +297,8 @@ const _getServerSideProps = async function getServerSideProps(context: GetServer
     },
   };
 };
+
+Login.isThemeSupported = false;
+Login.PageWrapper = PageWrapper;
 
 export const getServerSideProps = withNonce(_getServerSideProps);
