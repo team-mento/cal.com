@@ -98,8 +98,12 @@ export default function CreateEventTypeDialog({
 
   useEffect(() => {
     if (isManagedEventType) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       form.setValue("metadata.managedEventConfig.unlockedFields", unlockedManagedEventTypeProps);
     } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       form.setValue("metadata", null);
     }
   }, [schedulingTypeWatch]);
