@@ -14,5 +14,5 @@ public
 .DS_Store
 .eslintignore
 packages/prisma/zod
-packages/features/ee
+packages/prisma/enums
 apps/web/public/embed

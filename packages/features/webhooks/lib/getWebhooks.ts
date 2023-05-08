@@ -1,6 +1,7 @@
-import type { PrismaClient, WebhookTriggerEvents } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 import defaultPrisma from "@calcom/prisma";
+import type { WebhookTriggerEvents } from "@calcom/prisma/enums";
 
 export type GetSubscriberOptions = {
   userId: number;

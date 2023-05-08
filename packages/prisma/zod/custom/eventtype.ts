@@ -1,4 +1,4 @@
-import { SchedulingType } from "@prisma/client";
+import { SchedulingType } from "@calcom/prisma/enums";
 import { z } from "zod";
 
 import * as imports from "../../zod-utils";
