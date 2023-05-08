@@ -48,6 +48,8 @@ export const createHandler = async ({ ctx, input }: CreateOptions) => {
     locations = [{ type: locationType, link: defaultConferencingData.appLink }];
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const data: Prisma.EventTypeCreateInput = {
     ...rest,
     owner: teamId ? undefined : { connect: { id: userId } },

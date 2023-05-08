@@ -1,5 +1,6 @@
-import { SchedulingType } from "@calcom/prisma/enums";
 import { z } from "zod";
+
+import { SchedulingType } from "@calcom/prisma/enums";
 
 import * as imports from "../../zod-utils";
 
@@ -13,6 +14,7 @@ export const createEventTypeInput = z
     eventName: z.string().nullish(),
     description: z.string().nullish(),
     locations: imports.eventTypeLocations,
+    metadata: imports.EventTypeMetaDataSchema.optional(),
     recurringEvent: imports.recurringEventType?.optional(),
     length: z.number().int(),
     hidden: z.boolean(),
