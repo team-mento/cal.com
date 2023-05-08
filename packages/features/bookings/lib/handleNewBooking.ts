@@ -336,55 +336,29 @@ async function ensureAvailableUsers(
       { user, eventType }
     );
 
-    // check if time slot is outside of schedule.
-    if (
-      !isWithinAvailableHours(
-        { start: input.dateFrom, end: input.dateTo },
-        {
-          workingHours,
-          dateOverrides,
-          organizerTimeZone: eventType.timeZone || eventType?.schedule?.timeZone || user.timeZone,
-          inviteeTimeZone: input.timeZone,
-        }
-      )
-    ) {
-      // user does not have availability at this time, skip user.
-      continue;
+    if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
+      // check if time slot is outside of schedule.
+      if (
+        !isWithinAvailableHours(
+          { start: input.dateFrom, end: input.dateTo },
+          {
+            workingHours,
+            dateOverrides,
+            organizerTimeZone: eventType.timeZone || eventType?.schedule?.timeZone || user.timeZone,
+            inviteeTimeZone: input.timeZone,
+          }
+        )
+      ) {
+        // user does not have availability at this time, skip user.
+        continue;
+      }
     }
 
     console.log("calendarBusyTimes==>>>", bufferedBusyTimes);
 
     let foundConflict = false;
     try {
-      if (
-        eventType.recurringEvent &&
-        recurringDatesInfo?.currentRecurringIndex === 0 &&
-        recurringDatesInfo.allRecurringDates
-      ) {
-        const allBookingDates = recurringDatesInfo.allRecurringDates.map((strDate) => new Date(strDate));
-        // Go through each date for the recurring event and check if each one's availability
-        // DONE: Decreased computational complexity from O(2^n) to O(n) by refactoring this loop to stop
-        // running at the first unavailable time.
-        let i = 0;
-        while (!foundConflict && i < allBookingDates.length) {
-          const date = allBookingDates[i++];
-          const conflict = checkForConflicts(bufferedBusyTimes, date, eventType.length);
-
-          if (conflict) {
-            // CUSTOM_CODE Zapier single session
-            try {
-              await fetch(
-                `https://hooks.zapier.com/hooks/catch/8583043/bvz7pcb/silent?email=${
-                  input.email
-                }&coach=${eventType?.users?.map((u) => u.email)?.join(", ")}&event=${
-                  eventType?.eventName || ""
-                }&date=${date.toUTCString()}`
-              );
-            } catch (e) {}
-          }
-          foundConflict = conflict;
-        }
-      } else {
+      if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
         const conflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
 
         if (conflict) {
@@ -406,6 +380,9 @@ async function ensureAvailableUsers(
         message: "Unable set isAvailableToBeBooked. Using true. ",
       });
     }
+
+    console.log("foundConflict", foundConflict);
+
     // no conflicts found, add to available users.
     if (!foundConflict) {
       availableUsers.push(user);
