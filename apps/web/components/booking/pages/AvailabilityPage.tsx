@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { FormattedNumber, IntlProvider } from "react-intl";
 import { z } from "zod";
 
 import BookingPageTagManager from "@calcom/app-store/BookingPageTagManager";
@@ -36,7 +35,7 @@ import type { AvailabilityPageProps } from "../../../pages/[user]/[type]";
 import type { DynamicAvailabilityPageProps } from "../../../pages/d/[link]/[slug]";
 import type { AvailabilityTeamPageProps } from "../../../pages/team/[slug]/[type]";
 
-const PoweredByCal = dynamic(() => import("@components/ui/PoweredByCal"));
+const PoweredBy = dynamic(() => import("@calcom/ee/components/PoweredBy"));
 
 const Toaster = dynamic(() => import("react-hot-toast").then((mod) => mod.Toaster), { ssr: false });
 /*const SlotPicker = dynamic(() => import("../SlotPicker").then((mod) => mod.SlotPicker), {
@@ -74,7 +73,7 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
     brandColor: profile.brandColor,
     darkBrandColor: profile.darkBrandColor,
   });
-  const { t } = useLocale();
+  const { t, i18n } = useLocale();
   const availabilityDatePickerEmbedStyles = useEmbedStyles("availabilityDatePicker");
   //TODO: Plan to remove shouldAlignCentrallyInEmbed config
   const shouldAlignCentrallyInEmbed = useEmbedNonStylesConfig("align") !== "left";
@@ -123,16 +122,7 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
     [timeZone]
   );
   const paymentAppData = getPaymentAppData(eventType);
-  const paymentAmount = () => {
-    return;
-    <IntlProvider locale="en">
-      <FormattedNumber
-        value={paymentAppData.price / 100.0}
-        style="currency"
-        currency={paymentAppData.currency?.toUpperCase()}
-      />
-    </IntlProvider>;
-  };
+
   const rainbowAppData = getEventTypeAppData(eventType, "rainbow") || {};
   const rawSlug = profile.slug ? profile.slug.split("/") : [];
   if (rawSlug.length > 1) rawSlug.pop(); //team events have team name as slug, but user events have [user]/[type] as slug.
@@ -259,13 +249,12 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
                               })}
                             </>
                           ) : (
-                            <IntlProvider locale="en">
-                              <FormattedNumber
-                                value={paymentAppData.price / 100.0}
-                                style="currency"
-                                currency={paymentAppData.currency?.toUpperCase()}
-                              />
-                            </IntlProvider>
+                            <>
+                              {new Intl.NumberFormat(i18n.language, {
+                                style: "currency",
+                                currency: paymentAppData.currency,
+                              }).format(paymentAppData.price / 100)}
+                            </>
                           )}
                         </p>
                       )}
@@ -314,7 +303,7 @@ const AvailabilityPage = ({ profile, eventType, ...restProps }: Props) => {
               </div>
             </div>
             {/*/!* FIXME: We don't show branding in Embed yet because we need to place branding on top of the main content. Keeping it outside the main content would have visibility issues because outside main content background is transparent *!/*/}
-            {/*{!restProps.isBrandingHidden && !isEmbed && <PoweredByCal />}*/}
+            {/*{!restProps.isBrandingHidden && !isEmbed && <PoweredBy />}*/}
           </div>
         </main>
       </div>

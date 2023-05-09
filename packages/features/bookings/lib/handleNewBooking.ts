@@ -1,5 +1,5 @@
 import type { App, Attendee, Credential, EventTypeCustomInput } from "@prisma/client";
-import { BookingStatus, SchedulingType, WebhookTriggerEvents, WorkflowMethods, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import async from "async";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { cloneDeep } from "lodash";
@@ -53,6 +53,7 @@ import { updateWebUser as syncServicesUpdateWebUser } from "@calcom/lib/sync/Syn
 import { TimeFormat } from "@calcom/lib/timeFormat";
 import prisma, { userSelect } from "@calcom/prisma";
 import type { BookingReference } from "@calcom/prisma/client";
+import { BookingStatus, SchedulingType, WebhookTriggerEvents, WorkflowMethods } from "@calcom/prisma/enums";
 import { bookingCreateSchemaLegacyPropsForApi } from "@calcom/prisma/zod-utils";
 import {
   bookingCreateBodySchemaForApi,
@@ -64,7 +65,7 @@ import {
 import type { BufferedBusyTime } from "@calcom/types/BufferedBusyTime";
 import type { AdditionalInformation, AppsStatus, CalendarEvent, Person } from "@calcom/types/Calendar";
 import type { EventResult, PartialReference } from "@calcom/types/EventManager";
-import type { WorkingHours } from "@calcom/types/schedule";
+import type { WorkingHours, TimeRange as DateOverride } from "@calcom/types/schedule";
 
 import type { EventTypeInfo } from "../../webhooks/lib/sendPayload";
 import sendPayload from "../../webhooks/lib/sendPayload";
@@ -117,10 +118,14 @@ const isWithinAvailableHours = (
   timeSlot: { start: ConfigType; end: ConfigType },
   {
     workingHours,
+    dateOverrides,
     organizerTimeZone,
+    inviteeTimeZone,
   }: {
     workingHours: WorkingHours[];
+    dateOverrides: DateOverride[];
     organizerTimeZone: string;
+    inviteeTimeZone: string;
   }
 ) => {
   const timeSlotStart = dayjs(timeSlot.start).utc();
@@ -144,6 +149,22 @@ const isWithinAvailableHours = (
       return true;
     }
   }
+
+  // check if it is a date override
+  for (const dateOverride of dateOverrides) {
+    const utcOffSet = dayjs(dateOverride.start).tz(inviteeTimeZone).utcOffset();
+
+    const slotStart = dayjs(timeSlotStart).add(utcOffSet, "minute");
+    const slotEnd = dayjs(timeSlotEnd).add(utcOffSet, "minute");
+
+    if (
+      slotStart.isBetween(dateOverride.start, dateOverride.end) &&
+      slotEnd.isBetween(dateOverride.start, dateOverride.end)
+    ) {
+      return true;
+    }
+  }
+
   log.error(
     `NAUF: isWithinAvailableHours ${JSON.stringify({ ...timeSlot, organizerTimeZone, workingHours })}`
   );
@@ -195,10 +216,15 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
     },
     select: {
       id: true,
-      slug: true,
       customInputs: true,
       disableGuests: true,
-      users: userSelect,
+      users: {
+        select: {
+          credentials: true,
+          ...userSelect.select,
+        },
+      },
+      slug: true,
       team: {
         select: {
           id: true,
@@ -253,7 +279,12 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
       hosts: {
         select: {
           isFixed: true,
-          user: userSelect,
+          user: {
+            select: {
+              credentials: true,
+              ...userSelect.select,
+            },
+          },
         },
       },
       availability: {
@@ -277,7 +308,7 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
   };
 };
 
-type IsFixedAwareUser = User & { isFixed: boolean };
+type IsFixedAwareUser = User & { isFixed: boolean; credentials: Credential[] };
 
 async function ensureAvailableUsers(
   eventType: Awaited<ReturnType<typeof getEventTypesFromDB>> & {
@@ -292,7 +323,11 @@ async function ensureAvailableUsers(
   const availableUsers: IsFixedAwareUser[] = [];
   /** Let's start checking for availability */
   for (const user of eventType.users) {
-    const { busy: bufferedBusyTimes, workingHours } = await getUserAvailability(
+    const {
+      busy: bufferedBusyTimes,
+      workingHours,
+      dateOverrides,
+    } = await getUserAvailability(
       {
         userId: user.id,
         eventTypeId: eventType.id,
@@ -301,53 +336,29 @@ async function ensureAvailableUsers(
       { user, eventType }
     );
 
-    // check if time slot is outside of schedule.
-    if (
-      !isWithinAvailableHours(
-        { start: input.dateFrom, end: input.dateTo },
-        {
-          workingHours,
-          organizerTimeZone: eventType.timeZone || eventType?.schedule?.timeZone || user.timeZone,
-        }
-      )
-    ) {
-      // user does not have availability at this time, skip user.
-      continue;
+    if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
+      // check if time slot is outside of schedule.
+      if (
+        !isWithinAvailableHours(
+          { start: input.dateFrom, end: input.dateTo },
+          {
+            workingHours,
+            dateOverrides,
+            organizerTimeZone: eventType.timeZone || eventType?.schedule?.timeZone || user.timeZone,
+            inviteeTimeZone: input.timeZone,
+          }
+        )
+      ) {
+        // user does not have availability at this time, skip user.
+        continue;
+      }
     }
 
     console.log("calendarBusyTimes==>>>", bufferedBusyTimes);
 
     let foundConflict = false;
     try {
-      if (
-        eventType.recurringEvent &&
-        recurringDatesInfo?.currentRecurringIndex === 0 &&
-        recurringDatesInfo.allRecurringDates
-      ) {
-        const allBookingDates = recurringDatesInfo.allRecurringDates.map((strDate) => new Date(strDate));
-        // Go through each date for the recurring event and check if each one's availability
-        // DONE: Decreased computational complexity from O(2^n) to O(n) by refactoring this loop to stop
-        // running at the first unavailable time.
-        let i = 0;
-        while (!foundConflict && i < allBookingDates.length) {
-          const date = allBookingDates[i++];
-          const conflict = checkForConflicts(bufferedBusyTimes, date, eventType.length);
-
-          if (conflict) {
-            // CUSTOM_CODE Zapier single session
-            try {
-              await fetch(
-                `https://hooks.zapier.com/hooks/catch/8583043/bvz7pcb/silent?email=${
-                  input.email
-                }&coach=${eventType?.users?.map((u) => u.email)?.join(", ")}&event=${
-                  eventType?.eventName || ""
-                }&date=${date.toUTCString()}`
-              );
-            } catch (e) {}
-          }
-          foundConflict = conflict;
-        }
-      } else {
+      if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
         const conflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
 
         if (conflict) {
@@ -369,6 +380,9 @@ async function ensureAvailableUsers(
         message: "Unable set isAvailableToBeBooked. Using true. ",
       });
     }
+
+    console.log("foundConflict", foundConflict);
+
     // no conflicts found, add to available users.
     if (!foundConflict) {
       availableUsers.push(user);
@@ -667,6 +681,7 @@ async function handler(
           },
           select: {
             ...userSelect.select,
+            credentials: true, // Don't leak to client
             metadata: true,
           },
         })
@@ -698,7 +713,10 @@ async function handler(
       where: {
         id: eventType.userId,
       },
-      ...userSelect,
+      select: {
+        credentials: true, // Don't leak to client
+        ...userSelect.select,
+      },
     });
     if (!eventTypeUser) {
       log.warn({ message: "NewBooking: eventTypeUser.notFound" });
@@ -727,8 +745,7 @@ async function handler(
       return aIndex - bIndex;
     });
     const firstUsersMetadata = userMetadataSchema.parse(users[0].metadata);
-    const app = getAppFromSlug(firstUsersMetadata?.defaultConferencingApp?.appSlug);
-    locationBodyString = app?.appData?.location?.type || locationBodyString;
+    locationBodyString = firstUsersMetadata?.defaultConferencingApp?.appLink || locationBodyString;
     defaultLocationUrl = firstUsersMetadata?.defaultConferencingApp?.appLink;
   }
 
@@ -886,6 +903,7 @@ async function handler(
 
   const calEventUserFieldsResponses =
     "calEventUserFieldsResponses" in reqBody ? reqBody.calEventUserFieldsResponses : null;
+
   let evt: CalendarEvent = {
     type: eventType.title,
     title: getEventName(eventNameObject), //this needs to be either forced in english, or fetched for each attendee and organizer separately
@@ -1475,6 +1493,7 @@ async function handler(
        * deep cloning evt to avoid this
        */
       const copyEvent = cloneDeep(evt);
+      copyEvent.uid = booking.uid;
       await sendScheduledSeatsEmails(copyEvent, invitee[0], newSeat, !!eventType.seatsShowAttendees);
 
       const credentials = await refreshCredentials(organizerUser.credentials);
@@ -1535,7 +1554,7 @@ async function handler(
     // Here we should handle every after action that needs to be done after booking creation
 
     // Obtain event metadata that includes videoCallUrl
-    const metadata = { videoCallUrl: evt.videoCallData?.url };
+    const metadata = evt.videoCallData?.url ? { videoCallUrl: evt.videoCallData.url } : undefined;
     try {
       await scheduleWorkflowReminders({
         workflows: eventType.workflows,
@@ -2153,7 +2172,7 @@ async function handler(
     log.error("Error while creating booking references", error);
   }
 
-  const metadataFromEvent = { videoCallUrl };
+  const metadataFromEvent = videoCallUrl ? { videoCallUrl } : undefined;
 
   try {
     await scheduleWorkflowReminders({

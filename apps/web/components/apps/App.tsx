@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { useRouter } from "next/router";
 import type { IframeHTMLAttributes } from "react";
 import React, { useState } from "react";
 
@@ -41,9 +40,8 @@ const Component = ({
   isTemplate,
   dependencies,
 }: Parameters<typeof App>[0]) => {
-  const { t } = useLocale();
+  const { t, i18n } = useLocale();
   const hasDescriptionItems = descriptionItems && descriptionItems.length > 0;
-  const router = useRouter();
 
   const mutation = useAddAppMutation(null, {
     onSuccess: (data) => {
@@ -186,7 +184,7 @@ const Component = ({
               label={t("disconnect")}
               credentialId={existingCredentials[0]}
               onSuccess={() => {
-                router.replace("/apps/installed");
+                appCredentials.refetch();
               }}
             />
           ) : (
@@ -247,7 +245,7 @@ const Component = ({
             t("free_to_use_apps")
           ) : (
             <>
-              {Intl.NumberFormat("en-US", {
+              {Intl.NumberFormat(i18n.language, {
                 style: "currency",
                 currency: "USD",
                 useGrouping: false,
@@ -366,7 +364,7 @@ export default function App(props: {
   dependencies?: string[];
 }) {
   return (
-    <Shell smallHeading isPublic heading={<ShellHeading />} backPath="/apps" withoutSeo>
+    <Shell smallHeading isPublic hideHeadingOnMobile heading={<ShellHeading />} backPath="/apps" withoutSeo>
       <HeadSeo
         title={props.name}
         description={props.description}

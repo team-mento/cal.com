@@ -188,6 +188,7 @@ type LayoutProps = {
   // Gives the ability to include actions to the right of the heading
   actions?: JSX.Element;
   smallHeading?: boolean;
+  hideHeadingOnMobile?: boolean;
 };
 
 const useBrandColors = () => {
@@ -290,19 +291,19 @@ function UserDropdown({ small }: { small?: boolean }) {
                 />
               }
               {!user.away && (
-                <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                <div className="border-muted absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 bg-green-500" />
               )}
               {user.away && (
-                <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-yellow-500" />
+                <div className="border-muted absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 bg-yellow-500" />
               )}
             </span>
             {!small && (
               <span className="flex flex-grow items-center truncate">
                 <span className="flex-grow truncate text-sm">
-                  <span className="text-emphasis mb-1 block truncate font-medium leading-none">
+                  <span className="text-emphasis mb-1 block truncate pb-1 font-medium leading-none">
                     {user.name || "Nameless User"}
                   </span>
-                  <span className="text-default block truncate font-normal leading-none">
+                  <span className="text-default truncate pb-1 font-normal leading-none">
                     {user.username
                       ? process.env.NEXT_PUBLIC_WEBSITE_URL === "https://cal.com"
                         ? `cal.com/${user.username}`
@@ -403,6 +404,13 @@ function UserDropdown({ small }: { small?: boolean }) {
                 {/*</DropdownMenuItem>*/}
 
                 <DropdownMenuSeparator />
+
+                <DropdownMenuItem>
+                  <DropdownItem type="button" href="/settings/my-account/profile" StartIcon={Settings}>
+                    {t("settings")}
+                  </DropdownItem>
+                </DropdownMenuItem>
+
                 <DropdownMenuItem>
                   <DropdownItem
                     type="button"
@@ -788,8 +796,9 @@ export function ShellMain(props: LayoutProps) {
     <>
       <div
         className={classNames(
-          "flex items-center md:mt-0 md:mb-6",
-          props.smallHeading ? "lg:mb-7" : "lg:mb-8"
+          "flex items-center md:mb-6 md:mt-0",
+          props.smallHeading ? "lg:mb-7" : "lg:mb-8",
+          props.hideHeadingOnMobile ? "mb-0" : "mb-6"
         )}>
         {!!props.backPath && (
           <Button
@@ -805,14 +814,16 @@ export function ShellMain(props: LayoutProps) {
           />
         )}
         {props.heading && (
-          <header className={classNames(props.large && "py-8", "flex w-full max-w-full items-center")}>
+          <header
+            className={classNames(props.large && "py-8", "flex w-full max-w-full items-center truncate")}>
             {props.HeadingLeftIcon && <div className="ltr:mr-4">{props.HeadingLeftIcon}</div>}
-            <div className={classNames("w-full ltr:mr-4 rtl:ml-4 md:block", props.headerClassName)}>
+            <div className={classNames("w-full truncate ltr:mr-4 rtl:ml-4 md:block", props.headerClassName)}>
               {props.heading && (
                 <h3
                   className={classNames(
-                    "font-cal max-w-28 sm:max-w-72 md:max-w-80 text-emphasis hidden truncate text-xl font-semibold tracking-wide md:block xl:max-w-full",
-                    props.smallHeading ? "text-base" : "text-xl"
+                    "font-cal max-w-28 sm:max-w-72 md:max-w-80 text-emphasis inline truncate text-lg font-semibold tracking-wide sm:text-xl md:block xl:max-w-full",
+                    props.smallHeading ? "text-base" : "text-xl",
+                    props.hideHeadingOnMobile && "hidden"
                   )}>
                   {!isLocaleReady ? <SkeletonText invisible /> : props.heading}
                 </h3>

@@ -1,8 +1,19 @@
+import classNames from "@calcom/lib/classNames";
 import { LOGO, LOGO_ICON } from "@calcom/lib/constants";
 
-export default function Logo({ small, icon }: { small?: boolean; icon?: boolean }) {
+export default function Logo({
+  small,
+  icon,
+  inline = true,
+  className,
+}: {
+  small?: boolean;
+  icon?: boolean;
+  inline?: boolean;
+  className?: string;
+}) {
   return (
-    <h3 className="logo inline ">
+    <h3 className={classNames("logo", inline && "inline", className)}>
       <strong>
         {icon ? (
           <img className="mx-auto w-14" alt="Mento" title="Mento" src={LOGO_ICON} />
