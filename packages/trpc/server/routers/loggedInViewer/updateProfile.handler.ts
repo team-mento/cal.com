@@ -96,13 +96,37 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
     data,
     select: {
       id: true,
+      avatar: true,
       username: true,
       email: true,
       metadata: true,
       name: true,
       createdDate: true,
+      bio: true,
+      completedOnboarding: true,
     },
   });
+
+  // CUSTOM CODE
+  if (process.env?.NEXT_PUBLIC_MENTO_COACH_URL && process.env?.NEXT_PUBLIC_CALENDAR_KEY) {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
+        },
+        body: JSON.stringify({
+          name: updatedUser?.name,
+          bio: updatedUser?.bio,
+          avatar: updatedUser?.avatar,
+          onboarded: updatedUser?.completedOnboarding,
+          username: updatedUser?.username,
+        }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   // Sync Services
   await syncServicesUpdateWebUser(updatedUser);
