@@ -359,21 +359,7 @@ async function ensureAvailableUsers(
     let foundConflict = false;
     try {
       if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
-        const conflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
-
-        if (conflict) {
-          // CUSTOM_CODE Zapier bi weekly
-          try {
-            await fetch(
-              `https://hooks.zapier.com/hooks/catch/8583043/bvzjov9/silent?email=${input.email}&coach=${
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                eventType?.users?.map((u) => u.email).join(", ")
-              }&event=${eventType?.eventName || ""}&date=${new Date(input.dateFrom)?.toUTCString()}`
-            );
-          } catch (e) {}
-        }
-        foundConflict = conflict;
+        foundConflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
       }
     } catch {
       log.debug({
@@ -404,6 +390,17 @@ async function ensureAvailableUsers(
     }
   }
   if (!availableUsers.length) {
+    // CUSTOM_CODE Zapier Scheduling Error
+    try {
+      await fetch(
+        `https://hooks.zapier.com/hooks/catch/8583043/bvzjov9/silent?email=${input.email}&coach=${
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          eventType?.users?.map((u) => u.email).join(", ")
+        }&event=${eventType?.eventName || ""}&date=${new Date(input.dateFrom)?.toUTCString()}`
+      );
+    } catch (e) {}
+
     throw new Error("Please try again or contact concierge@mento.co for support.");
   }
   return availableUsers;
