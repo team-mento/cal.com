@@ -2048,9 +2048,10 @@ async function handler(
 
   const metadata = videoCallUrl
     ? {
-        videoCallUrl: getVideoCallUrlFromCalEvent(evt),
+        videoCallUrl: getVideoCallUrlFromCalEvent(evt) || videoCallUrl,
       }
     : undefined;
+
   if (isConfirmedByDefault) {
     const eventTrigger: WebhookTriggerEvents = rescheduleUid
       ? WebhookTriggerEvents.BOOKING_RESCHEDULED
@@ -2088,7 +2089,7 @@ async function handler(
       console.log("evt:", {
         ...evt,
         recurringEventId: reqBody?.recurringEventId,
-        metadata: reqBody.metadata,
+        metadata: { ...metadata, ...reqBody.metadata },
       });
       const bookingId = booking?.id;
 
