@@ -169,7 +169,7 @@ function EventTypeSingleLayout({
 
   // Define tab navigation here
   const EventTypeTabs = useMemo(() => {
-    let navigation = getNavigation({
+    const navigation = getNavigation({
       t,
       eventType,
       enabledAppsNumber,
@@ -209,7 +209,7 @@ function EventTypeSingleLayout({
     }
     if (isManagedEventType || isChildrenManagedEventType) {
       // Removing apps and workflows for manageg event types by admins v1
-      navigation = navigation.slice(0, -2);
+      navigation.splice(-2, 1);
     } else {
       navigation.push({
         name: "webhooks",
