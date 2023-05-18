@@ -110,18 +110,23 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
   // CUSTOM CODE
   if (process.env?.NEXT_PUBLIC_MENTO_COACH_URL && process.env?.NEXT_PUBLIC_CALENDAR_KEY) {
     try {
+      const params = {
+        name: updatedUser?.name,
+        bio: updatedUser?.bio,
+        avatar: updatedUser?.avatar,
+      };
+
+      if (!!updatedUser?.completedOnboarding) {
+        params["onboarded"] = updatedUser?.completedOnboarding;
+        params["username"] = updatedUser?.username;
+      }
+
       await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
         method: "PATCH",
         headers: {
           Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
         },
-        body: JSON.stringify({
-          name: updatedUser?.name,
-          bio: updatedUser?.bio,
-          avatar: updatedUser?.avatar,
-          onboarded: updatedUser?.completedOnboarding,
-          username: updatedUser?.username,
-        }),
+        body: JSON.stringify(params),
       });
     } catch (e) {
       console.error(e);
