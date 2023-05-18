@@ -11,8 +11,7 @@ import z from "zod";
 import { getCalendar } from "@calcom/app-store/_utils/getCalendar";
 import { metadata as GoogleMeetMetadata } from "@calcom/app-store/googlevideo/_metadata";
 import type { LocationObject } from "@calcom/app-store/locations";
-import { getLocationValueForDB } from "@calcom/app-store/locations";
-import { MeetLocationType } from "@calcom/app-store/locations";
+import { getLocationValueForDB, MeetLocationType } from "@calcom/app-store/locations";
 import { handleEthSignature } from "@calcom/app-store/rainbow/utils/ethereum";
 import type { EventTypeAppsList } from "@calcom/app-store/utils";
 import { getAppFromSlug, getEventTypeAppData } from "@calcom/app-store/utils";
@@ -27,12 +26,16 @@ import {
   sendAttendeeRequestEmail,
   sendOrganizerRequestEmail,
   sendRescheduledEmails,
-  sendScheduledEmails,
   sendRescheduledSeatEmail,
+  sendScheduledEmails,
   sendScheduledSeatsEmails,
 } from "@calcom/emails";
 import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/getBookingFields";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
+import {
+  allowDisablingAttendeeConfirmationEmails,
+  allowDisablingHostConfirmationEmails,
+} from "@calcom/features/ee/workflows/lib/allowDisablingStandardEmails";
 import { deleteScheduledEmailReminder } from "@calcom/features/ee/workflows/lib/reminders/emailReminderManager";
 import { scheduleWorkflowReminders } from "@calcom/features/ee/workflows/lib/reminders/reminderScheduler";
 import { deleteScheduledSMSReminder } from "@calcom/features/ee/workflows/lib/reminders/smsReminderManager";
@@ -54,9 +57,9 @@ import { TimeFormat } from "@calcom/lib/timeFormat";
 import prisma, { userSelect } from "@calcom/prisma";
 import type { BookingReference } from "@calcom/prisma/client";
 import { BookingStatus, SchedulingType, WebhookTriggerEvents, WorkflowMethods } from "@calcom/prisma/enums";
-import { bookingCreateSchemaLegacyPropsForApi } from "@calcom/prisma/zod-utils";
 import {
   bookingCreateBodySchemaForApi,
+  bookingCreateSchemaLegacyPropsForApi,
   customInputSchema,
   EventTypeMetaDataSchema,
   extendedBookingCreateBody,
@@ -65,7 +68,7 @@ import {
 import type { BufferedBusyTime } from "@calcom/types/BufferedBusyTime";
 import type { AdditionalInformation, AppsStatus, CalendarEvent, Person } from "@calcom/types/Calendar";
 import type { EventResult, PartialReference } from "@calcom/types/EventManager";
-import type { WorkingHours, TimeRange as DateOverride } from "@calcom/types/schedule";
+import type { TimeRange as DateOverride, WorkingHours } from "@calcom/types/schedule";
 
 import type { EventTypeInfo } from "../../webhooks/lib/sendPayload";
 import sendPayload from "../../webhooks/lib/sendPayload";
@@ -359,21 +362,7 @@ async function ensureAvailableUsers(
     let foundConflict = false;
     try {
       if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
-        const conflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
-
-        if (conflict) {
-          // CUSTOM_CODE Zapier bi weekly
-          try {
-            await fetch(
-              `https://hooks.zapier.com/hooks/catch/8583043/bvzjov9/silent?email=${input.email}&coach=${
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                eventType?.users?.map((u) => u.email).join(", ")
-              }&event=${eventType?.eventName || ""}&date=${new Date(input.dateFrom)?.toUTCString()}`
-            );
-          } catch (e) {}
-        }
-        foundConflict = conflict;
+        foundConflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
       }
     } catch {
       log.debug({
@@ -404,6 +393,17 @@ async function ensureAvailableUsers(
     }
   }
   if (!availableUsers.length) {
+    // CUSTOM_CODE Zapier Scheduling Errors
+    try {
+      await fetch(
+        `https://hooks.zapier.com/hooks/catch/8583043/bvzjov9/silent?email=${input.email}&coach=${
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          eventType?.users?.map((u) => u.email).join(", ")
+        }&event=${eventType?.eventName || ""}&date=${new Date(input.dateFrom)?.toUTCString()}`
+      );
+    } catch (e) {}
+
     throw new Error("Please try again or contact concierge@mento.co for support.");
   }
   return availableUsers;
@@ -1037,9 +1037,17 @@ async function handler(
           message?: string;
         })
       | null = null;
-    const booking = await prisma.booking.findUniqueOrThrow({
+    const booking = await prisma.booking.findFirst({
       where: {
-        uid: rescheduleUid || reqBody.bookingUid,
+        OR: [
+          {
+            uid: rescheduleUid || reqBody.bookingUid,
+          },
+          {
+            eventTypeId: eventType.id,
+            startTime: evt.startTime,
+          },
+        ],
       },
       select: {
         uid: true,
@@ -1052,6 +1060,11 @@ async function handler(
         status: true,
       },
     });
+
+    if (!booking) {
+      throw new HttpError({ statusCode: 404, message: "Could not find booking" });
+    }
+
     // See if attendee is already signed up for timeslot
     if (
       booking.attendees.find((attendee) => attendee.email === invitee[0].email) &&
@@ -1946,7 +1959,11 @@ async function handler(
             originalEvent: results[0].originalEvent,
           };
 
-          const googleCalResult = results.find((result) => result.type === "google_calendar");
+          // Find index of google_calendar inside createManager.referencesToCreate
+          const googleCalIndex = createManager.referencesToCreate.findIndex(
+            (ref) => ref.type === "google_calendar"
+          );
+          const googleCalResult = results[googleCalIndex];
 
           if (!googleCalResult) {
             results.push({
@@ -1960,6 +1977,20 @@ async function handler(
             results.push({
               ...googleMeetResult,
               success: true,
+            });
+
+            // Add google_meet to referencesToCreate in the same index as google_calendar
+            createManager.referencesToCreate[googleCalIndex] = {
+              ...createManager.referencesToCreate[googleCalIndex],
+              meetingUrl: googleCalResult.createdEvent.hangoutLink,
+            };
+
+            // Also create a new referenceToCreate with type video for google_meet
+            createManager.referencesToCreate.push({
+              type: "google_meet_video",
+              meetingUrl: googleCalResult.createdEvent.hangoutLink,
+              uid: googleCalResult.uid,
+              credentialId: createManager.referencesToCreate[googleCalIndex].credentialId,
             });
           } else if (googleCalResult && !googleCalResult.createdEvent?.hangoutLink) {
             results.push({
@@ -1976,6 +2007,26 @@ async function handler(
         videoCallUrl = metadata.hangoutLink || defaultLocationUrl || videoCallUrl;
       }
       if (noEmail !== true) {
+        let isHostConfirmationEmailsDisabled = false;
+        let isAttendeeConfirmationEmailDisabled = false;
+
+        const workflows = eventType.workflows.map((workflow) => workflow.workflow);
+
+        if (eventType.workflows) {
+          isHostConfirmationEmailsDisabled =
+            eventType.metadata?.disableStandardEmails?.confirmation?.host || false;
+          isAttendeeConfirmationEmailDisabled =
+            eventType.metadata?.disableStandardEmails?.confirmation?.attendee || false;
+
+          if (isHostConfirmationEmailsDisabled) {
+            isHostConfirmationEmailsDisabled = allowDisablingHostConfirmationEmails(workflows);
+          }
+
+          if (isAttendeeConfirmationEmailDisabled) {
+            isAttendeeConfirmationEmailDisabled = allowDisablingAttendeeConfirmationEmails(workflows);
+          }
+        }
+
         await sendScheduledEmails(
           {
             ...evt,
@@ -1983,7 +2034,9 @@ async function handler(
             additionalNotes,
             customInputs,
           },
-          eventNameObject
+          eventNameObject,
+          isHostConfirmationEmailsDisabled,
+          isAttendeeConfirmationEmailDisabled
         );
       }
     }
@@ -2052,9 +2105,10 @@ async function handler(
 
   const metadata = videoCallUrl
     ? {
-        videoCallUrl: getVideoCallUrlFromCalEvent(evt),
+        videoCallUrl: getVideoCallUrlFromCalEvent(evt) || videoCallUrl,
       }
     : undefined;
+
   if (isConfirmedByDefault) {
     const eventTrigger: WebhookTriggerEvents = rescheduleUid
       ? WebhookTriggerEvents.BOOKING_RESCHEDULED
@@ -2092,7 +2146,7 @@ async function handler(
       console.log("evt:", {
         ...evt,
         recurringEventId: reqBody?.recurringEventId,
-        metadata: reqBody.metadata,
+        metadata: { ...metadata, ...reqBody.metadata },
       });
       const bookingId = booking?.id;
 

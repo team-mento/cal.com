@@ -28,6 +28,7 @@ type WebhookDataType = CalendarEvent &
     triggerEvent: string;
     createdAt: string;
     recurringEventId?: string | null;
+    downloadLink?: string;
   };
 
 function getZapierPayload(data: CalendarEvent & EventTypeInfo & { status?: string }): string {
