@@ -189,9 +189,9 @@ ${getCancellationReason(calEvent)}
 
 📆 <a href="${getRescheduleLink(calEvent)}" target="_blank">Reschedule</a> or <a href="${getCancelLink(
     calEvent
-  )}" target="_blank">cancel</a> on Mento within 48 hours form the session start time.
+  )}" target="_blank">cancel</a> on Mento 48 hours before the session start time.
 
-Your coach will wait for up to 10 minutes for you before it’s considered a missed session. <a href="${cancelationPolicyURL}" target="_blank">Mento Rescheduling & Cancelation Policy.</a>.
+Your coach will wait for up to 10 minutes for you before it’s considered a missed session. <a href="${cancelationPolicyURL}" target="_blank">Mento Rescheduling & Cancelation Policy</a>.
 
 Manage coaching sessions on <a href="${appUrl}" target="_blank">Mento</a>`.trim();
 };
