@@ -117,7 +117,11 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
       };
 
       if (!!updatedUser?.completedOnboarding) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         params["onboarded"] = updatedUser?.completedOnboarding;
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         params["username"] = updatedUser?.username;
       }
 
