@@ -1,12 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
-import getAppKeysFromSlug from "@calcom/app-store/_utils/getAppKeysFromSlug";
-import { DailyLocationType } from "@calcom/app-store/locations";
-import getApps from "@calcom/app-store/utils";
 import type { PrismaClient } from "@calcom/prisma/client";
 import { SchedulingType } from "@calcom/prisma/enums";
-import { userMetadata as userMetadataSchema } from "@calcom/prisma/zod-utils";
 
 import { TRPCError } from "@trpc/server";
 
@@ -27,26 +23,27 @@ export const createHandler = async ({ ctx, input }: CreateOptions) => {
   const isManagedEventType = schedulingType === SchedulingType.MANAGED;
   // Get Users default conferncing app
 
-  const defaultConferencingData = userMetadataSchema.parse(ctx.user.metadata)?.defaultConferencingApp;
-  const appKeys = await getAppKeysFromSlug("daily-video");
+  // const defaultConferencingData = userMetadataSchema.parse(ctx.user.metadata)?.defaultConferencingApp;
+  // const appKeys = await getAppKeysFromSlug("daily-video");
 
-  let locations: { type: string; link?: string }[] = [];
+  // CUSTOM_CODE
+  const locations: { type: string; link?: string }[] = [{ type: "integrations:google:meet" }];
 
   // If no locations are passed in and the user has a daily api key then default to daily
-  if (
-    (typeof rest?.locations === "undefined" || rest.locations?.length === 0) &&
-    typeof appKeys.api_key === "string"
-  ) {
-    locations = [{ type: DailyLocationType }];
-  }
+  // if (
+  //   (typeof rest?.locations === "undefined" || rest.locations?.length === 0) &&
+  //   typeof appKeys.api_key === "string"
+  // ) {
+  //   locations = [{ type: DailyLocationType }];
+  // }
 
   // If its defaulting to daily no point handling compute as its done
-  if (defaultConferencingData && defaultConferencingData.appSlug !== "daily-video") {
-    const credentials = ctx.user.credentials;
-    const foundApp = getApps(credentials).filter((app) => app.slug === defaultConferencingData.appSlug)[0]; // There is only one possible install here so index [0] is the one we are looking for ;
-    const locationType = foundApp?.locationOption?.value ?? DailyLocationType; // Default to Daily if no location type is found
-    locations = [{ type: locationType, link: defaultConferencingData.appLink }];
-  }
+  // if (defaultConferencingData && defaultConferencingData.appSlug !== "daily-video") {
+  //   const credentials = ctx.user.credentials;
+  //   const foundApp = getApps(credentials).filter((app) => app.slug === defaultConferencingData.appSlug)[0]; // There is only one possible install here so index [0] is the one we are looking for ;
+  //   const locationType = foundApp?.locationOption?.value ?? DailyLocationType; // Default to Daily if no location type is found
+  //   locations = [{ type: locationType, link: defaultConferencingData.appLink }];
+  // }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
