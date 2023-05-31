@@ -125,10 +125,11 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
         params["username"] = updatedUser?.username;
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
+      await fetch(`http://localhost:3002/api/calendar/coach?email=${user?.email}`, {
         method: "PATCH",
         headers: {
           Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(params),
       });
