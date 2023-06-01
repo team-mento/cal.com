@@ -125,7 +125,7 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
         params["username"] = updatedUser?.username;
       }
 
-      await fetch(`http://localhost:3002/api/calendar/coach?email=${user?.email}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
         method: "PATCH",
         headers: {
           Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
@@ -171,4 +171,5 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
       .then(() => console.info("Booking pages revalidated"))
       .catch((e) => console.error(e));
   }
+  return input;
 };

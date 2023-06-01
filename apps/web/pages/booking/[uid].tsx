@@ -278,7 +278,9 @@ export default function Success(props: SuccessProps) {
     darkBrandColor: props.profile.darkBrandColor,
   });
   const title = t(
-    `booking_${needsConfirmation ? "submitted" : "confirmed"}${props.recurringBookings ? "_recurring" : ""}`
+    `booking_${needsConfirmation ? "booking_submitted" : "confirmed"}${
+      props.recurringBookings ? "_recurring" : ""
+    }`
   );
 
   const locationToDisplay = getSuccessPageLocationMessage(
@@ -363,7 +365,7 @@ export default function Success(props: SuccessProps) {
                     {needsConfirmation && !isCancelled
                       ? props.recurringBookings
                         ? t("submitted_recurring")
-                        : t("submitted")
+                        : t("booking_submitted")
                       : isCancelled
                       ? seatReferenceUid
                         ? t("no_longer_attending")
@@ -442,8 +444,10 @@ export default function Success(props: SuccessProps) {
                           )}
                           {bookingInfo?.attendees.map((attendee) => (
                             <div key={attendee.name + attendee.email} className="mb-3 last:mb-0">
-                              {attendee.name && <p>{attendee.name}</p>}
-                              <p data-testid={`attendee-${attendee.email}`}>{attendee.email}</p>
+                              {attendee.name && (
+                                <p data-testid={`attendee-name-${attendee.name}`}>{attendee.name}</p>
+                              )}
+                              <p data-testid={`attendee-email-${attendee.email}`}>{attendee.email}</p>
                             </div>
                           ))}
                         </div>

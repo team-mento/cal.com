@@ -56,6 +56,9 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio }: TeamPageProps) {
     );
   }
 
+  // slug is a route parameter, we don't want to forward it to the next route
+  const { slug: _slug, ...queryParamsToForward } = router.query;
+
   const EventTypes = () => (
     <ul className="border-subtle rounded-md border">
       {team.eventTypes.map((type, index) => (
@@ -67,7 +70,10 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio }: TeamPageProps) {
           )}>
           <div className="px-6 py-4 ">
             <Link
-              href={`/team/${team.slug}/${type.slug}`}
+              href={{
+                pathname: `/team/${team.slug}/${type.slug}`,
+                query: queryParamsToForward,
+              }}
               onClick={async () => {
                 sdkActionManager?.fire("eventTypeSelected", {
                   eventType: type,
@@ -110,7 +116,7 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio }: TeamPageProps) {
           profile: { name: `${team.name}`, image: getPlaceholderAvatar(team.logo, team.name) },
         }}
       />
-      <main className="dark:bg-darkgray-50 bg-subtle mx-auto max-w-3xl rounded-md px-4 pt-12 pb-12">
+      <main className="bg-sunny-100 mx-auto max-w-3xl rounded-md px-4 pt-12 pb-12">
         <div className="mx-auto mb-8 max-w-3xl text-center">
           <Avatar alt={teamName} imageSrc={getPlaceholderAvatar(team.logo, team.name)} size="lg" />
           <p className="font-cal  text-emphasis mb-2 text-2xl tracking-wider">{teamName}</p>
@@ -135,7 +141,7 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio }: TeamPageProps) {
                     <div className="border-subtle w-full border-t" />
                   </div>
                   <div className="relative flex justify-center">
-                    <span className="dark:bg-darkgray-50 bg-subtle text-subtle dark:text-inverted px-2 text-sm">
+                    <span className="bg-sunny-100 text-subtle dark:text-inverted px-2 text-sm">
                       {t("or")}
                     </span>
                   </div>
@@ -146,7 +152,13 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio }: TeamPageProps) {
                     color="minimal"
                     EndIcon={ArrowRight}
                     className="dark:hover:bg-darkgray-200"
-                    href={`/team/${team.slug}?members=1`}
+                    href={{
+                      pathname: `/team/${team.slug}`,
+                      query: {
+                        members: "1",
+                        ...queryParamsToForward,
+                      },
+                    }}
                     shallow={true}>
                     {t("book_a_team_member")}
                   </Button>

@@ -5,39 +5,37 @@ import StickyBox from "react-sticky-box";
 import { shallow } from "zustand/shallow";
 
 import classNames from "@calcom/lib/classNames";
-import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import useMediaQuery from "@calcom/lib/hooks/useMediaQuery";
-import { ToggleGroup, useCalcomTheme } from "@calcom/ui";
+import { ToggleGroup } from "@calcom/ui";
 import { Calendar, Columns, Grid } from "@calcom/ui/components/icon";
 
 import { AvailableTimeSlots } from "./components/AvailableTimeSlots";
-import { Away } from "./components/Away";
 import { BookEventForm } from "./components/BookEventForm";
 import { BookFormAsModal } from "./components/BookEventForm/BookFormAsModal";
 import { EventMeta } from "./components/EventMeta";
 import { LargeCalendar } from "./components/LargeCalendar";
 import { LargeViewHeader } from "./components/LargeViewHeader";
 import { BookerSection } from "./components/Section";
+import { Away, NotFound } from "./components/Unavailable";
 import { fadeInLeft, getBookerSizeClassNames, useBookerResizeAnimation } from "./config";
 import { useBookerStore, useInitializeBookerStore } from "./store";
 import type { BookerLayout, BookerProps } from "./types";
 import { useEvent } from "./utils/event";
+import { useBrandColors } from "./utils/use-brand-colors";
 
 const PoweredBy = dynamic(() => import("@calcom/ee/components/PoweredBy"));
 const DatePicker = dynamic(() => import("./components/DatePicker").then((mod) => mod.DatePicker), {
   ssr: false,
 });
 
-const useBrandColors = ({ brandColor, darkBrandColor }: { brandColor?: string; darkBrandColor?: string }) => {
-  const brandTheme = useGetBrandingColours({
-    lightVal: brandColor,
-    darkVal: darkBrandColor,
-  });
-  useCalcomTheme(brandTheme);
-};
-
-const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: BookerProps) => {
+const BookerComponent = ({
+  username,
+  eventSlug,
+  month,
+  rescheduleBooking,
+  hideBranding = false,
+}: BookerProps) => {
   const { t } = useLocale();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
@@ -61,6 +59,7 @@ const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: Book
   useBrandColors({
     brandColor: event.data?.profile.brandColor,
     darkBrandColor: event.data?.profile.darkBrandColor,
+    theme: event.data?.profile.theme,
   });
 
   useInitializeBookerStore({
@@ -93,6 +92,10 @@ const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: Book
     }
   }, [layout]);
 
+  if (event.isSuccess && !event.data) {
+    return <NotFound />;
+  }
+
   return (
     <>
       {/*
@@ -100,7 +103,7 @@ const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: Book
         since that's not a valid option, so it would set the layout to null.
       */}
       {!isMobile && (
-        <div className="[&>div]:bg-muted fixed top-2 right-3 z-10">
+        <div className="[&>div]:bg-default dark:[&>div]:bg-muted fixed top-2 right-3 z-10">
           <ToggleGroup
             onValueChange={onLayoutToggle}
             defaultValue={layout}
@@ -130,7 +133,7 @@ const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: Book
           className={classNames(
             // Sets booker size css variables for the size of all the columns.
             ...getBookerSizeClassNames(layout, bookerState),
-            "bg-muted grid max-w-full auto-rows-fr items-start overflow-clip dark:[color-scheme:dark] sm:transition-[width] sm:duration-300 sm:motion-reduce:transition-none md:flex-row",
+            "bg-default dark:bg-muted grid max-w-full auto-rows-fr items-start overflow-clip dark:[color-scheme:dark] sm:transition-[width] sm:duration-300 sm:motion-reduce:transition-none md:flex-row",
             layout === "small_calendar" && "border-subtle rounded-md border"
           )}>
           <AnimatePresence>
@@ -209,7 +212,7 @@ const BookerComponent = ({ username, eventSlug, month, rescheduleBooking }: Book
             "mt-auto mb-6 pt-6 [&_img]:h-[15px]",
             layout === "small_calendar" ? "block" : "hidden"
           )}>
-          <PoweredBy logoOnly />
+          {!hideBranding ? <PoweredBy logoOnly /> : null}
         </m.span>
       </div>
 
