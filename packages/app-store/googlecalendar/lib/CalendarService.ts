@@ -239,7 +239,7 @@ export default class GoogleCalendarService implements Calendar {
           calendarId: selectedCalendar,
           eventId: uid,
           sendNotifications: true,
-          sendUpdates: "externalOnly",
+          sendUpdates: "none",
           requestBody: payload,
           conferenceDataVersion: 1,
         },
@@ -298,7 +298,7 @@ export default class GoogleCalendarService implements Calendar {
           calendarId: calendarId ? calendarId : defaultCalendarId,
           eventId: uid,
           sendNotifications: false,
-          sendUpdates: "externalOnly",
+          sendUpdates: "none",
         },
         function (err: GoogleCalError | null, event) {
           if (err) {
