@@ -390,6 +390,18 @@ async function ensureAvailableUsers(
             }&date=${new Date(input.dateFrom)?.toUTCString()}`
           );
         } catch (e) {}
+      } else if (eventType.slug === "chemistry-call") {
+        try {
+          await fetch(
+            `https://hooks.zapier.com/hooks/catch/8583043/3tcdiom/silent?email=${
+              input.email
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+            }&coach=${eventType?.users?.map((u) => u.email).join(", ")}&event=${
+              eventType?.eventName || ""
+            }&date=${new Date(input.dateFrom)?.toUTCString()}`
+          );
+        } catch (e) {}
       }
     }
   }
