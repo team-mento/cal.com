@@ -376,33 +376,6 @@ async function ensureAvailableUsers(
     // no conflicts found, add to available users.
     if (!foundConflict) {
       availableUsers.push(user);
-
-      // CUSTOM_CODE Zapier call for Bi weekly start
-      if (eventType.slug === "bi-weekly-start-coaching-session") {
-        try {
-          await fetch(
-            `https://hooks.zapier.com/hooks/catch/8583043/bva7ac8/silent?email=${
-              input.email
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-            }&coach=${eventType?.users?.map((u) => u.email).join(", ")}&event=${
-              eventType?.eventName || ""
-            }&date=${new Date(input.dateFrom)?.toUTCString()}`
-          );
-        } catch (e) {}
-      } else if (eventType.slug === "chemistry-call") {
-        try {
-          await fetch(
-            `https://hooks.zapier.com/hooks/catch/8583043/3tcdiom/silent?email=${
-              input.email
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-            }&coach=${eventType?.users?.map((u) => u.email).join(", ")}&event=${
-              eventType?.eventName || ""
-            }&date=${new Date(input.dateFrom)?.toUTCString()}`
-          );
-        } catch (e) {}
-      }
     }
   }
   if (!availableUsers.length) {
@@ -2145,6 +2118,7 @@ async function handler(
       : undefined,
     metadata: { ...metadata, ...reqBody.metadata },
     eventTypeId,
+    slug: eventTypeSlug,
     status: "ACCEPTED",
     smsReminderNumber: booking?.smsReminderNumber || undefined,
   };
