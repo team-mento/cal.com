@@ -48,8 +48,9 @@ import type { Prisma } from "@calcom/prisma/client";
 import { BookingStatus } from "@calcom/prisma/enums";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 import { customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import { HeadSeo, Badge, useCalcomTheme } from "@calcom/ui";
+import { HeadSeo, Badge, useCalcomTheme, Alert } from "@calcom/ui";
 import { X, ExternalLink, ChevronLeft, Check, Calendar } from "@calcom/ui/components/icon";
+import { AlertCircle } from "@calcom/ui/components/icon";
 
 import { timeZone } from "@lib/clock";
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -125,6 +126,10 @@ export default function Success(props: SuccessProps) {
     typeof props?.bookingInfo?.attendees?.[0]?.name === "string"
       ? props?.bookingInfo?.attendees?.[0]?.name
       : "Nameless";
+
+  const attendees = props?.bookingInfo?.attendees;
+
+  const isGmail = !!attendees.find((attendee) => attendee.email.includes("gmail.com"));
 
   const [is24h, setIs24h] = useState(isBrowserLocale24h());
   const { data: session } = useSession();
@@ -670,11 +675,11 @@ export default function Success(props: SuccessProps) {
 
                 {/*{session === null && !(userIsOwner || props.hideBranding) && (*/}
                 {/*  <>*/}
-                {/*    <hr className="border-bookinglightest dark:border-darkgray-300 mt-8" />*/}
-                {/*    <div className="border-bookinglightest text-booking-lighter dark:border-darkgray-300 pt-8 text-center text-xs dark:text-white">*/}
-                {/*      <a href="https://cal.com/signup">*/}
-                {/*        {t("create_booking_link_with_calcom", { appName: APP_NAME })}*/}
-                {/*      </a>*/}
+                {/*    <hr className="border-subtle mt-8" />*/}
+                {/*    <div className="text-default pt-8 text-center text-xs">*/}
+                {/*      /!*<a href="https://cal.com/signup">*!/*/}
+                {/*      /!*  {t("create_booking_link_with_calcom", { appName: APP_NAME })}*!/*/}
+                {/*      /!*</a>*!/*/}
 
                 {/*      <form*/}
                 {/*        onSubmit={(e) => {*/}
@@ -689,7 +694,7 @@ export default function Success(props: SuccessProps) {
                 {/*          name="email"*/}
                 {/*          id="email"*/}
                 {/*          defaultValue={email}*/}
-                {/*          className="mr- focus:border-brand border-bookinglightest dark:border-darkgray-300 mt-0 block w-full rounded-none rounded-l-md border-gray-300 shadow-sm focus:ring-black dark:bg-black dark:text-white sm:text-sm"*/}
+                {/*          className="mr- focus:border-brand-default border-default text-default mt-0 block w-full rounded-none rounded-l-md shadow-sm focus:ring-black  sm:text-sm"*/}
                 {/*          placeholder="rick.astley@cal.com"*/}
                 {/*        />*/}
                 {/*        <Button*/}
@@ -704,6 +709,26 @@ export default function Success(props: SuccessProps) {
                 {/*  </>*/}
                 {/*)}*/}
               </div>
+              {isGmail && (
+                <Alert
+                  className="main -mb-20 mt-4 inline-block text-left sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
+                  severity="warning"
+                  message={
+                    <div>
+                      <p className="font-semibold">{t("google_new_spam_policy")}</p>
+                      <span className="underline">
+                        <a
+                          target="_blank"
+                          href="https://cal.com/blog/google-s-new-spam-policy-may-be-affecting-your-invitations">
+                          {t("resolve")}
+                        </a>
+                      </span>
+                    </div>
+                  }
+                  CustomIcon={AlertCircle}
+                  customIconColor="text-attention dark:text-orange-200"
+                />
+              )}
             </div>
           </div>
         </div>
