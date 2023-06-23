@@ -653,7 +653,6 @@ const BookingPage = ({
                   </Button>
                   <Button
                     type="submit"
-                    color="primary"
                     data-testid={rescheduleUid ? "confirm-reschedule-button" : "confirm-book-button"}
                     loading={mutation.isLoading || recurringMutation.isLoading}>
                     {rescheduleUid ? t("reschedule") : t("confirm")}
