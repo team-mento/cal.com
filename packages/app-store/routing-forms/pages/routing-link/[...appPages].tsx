@@ -101,6 +101,7 @@ function RoutingForm({ form, profile, ...restProps }: Props) {
         await router.push(`/${decidedAction.value}?${allURLSearchParams}`);
       } else if (decidedAction.type === "externalRedirectUrl") {
         window.parent.location.href = `${decidedAction.value}?${allURLSearchParams}`;
+        return;
       }
       // We don't want to show this message as it doesn't look good in Embed.
       // showToast("Form submitted successfully! Redirecting now ...", "success");
