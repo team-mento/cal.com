@@ -795,6 +795,12 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
     ...(user?.username
       ? [
           {
+            name: "Back to mento",
+            href: `${process.env.NEXT_PUBLIC_MENTO_COACH_URL}`,
+            icon: ArrowLeft,
+            target: "__blank",
+          },
+          {
             name: "view_public_page",
             href: !!user?.organizationId
               ? publicPageUrl

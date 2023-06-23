@@ -7,7 +7,7 @@ import React, { Suspense, useEffect, useState } from "react";
 
 import Shell from "@calcom/features/shell/Shell";
 import { classNames } from "@calcom/lib";
-import { HOSTED_CAL_FEATURES, WEBAPP_URL } from "@calcom/lib/constants";
+import { WEBAPP_URL } from "@calcom/lib/constants";
 import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { IdentityProvider } from "@calcom/prisma/enums";
@@ -122,12 +122,12 @@ const tabs: VerticalTabItemProps[] = [
   },
 ];
 
-tabs.find((tab) => {
-  // Add "SAML SSO" to the tab
-  if (tab.name === "security" && !HOSTED_CAL_FEATURES) {
-    tab.children?.push({ name: "sso_configuration", href: "/settings/security/sso" });
-  }
-});
+// tabs.find((tab) => {
+//   // Add "SAML SSO" to the tab
+//   if (tab.name === "security" && !HOSTED_CAL_FEATURES) {
+//     tab.children?.push({ name: "sso_configuration", href: "/settings/security/sso" });
+//   }
+// });
 
 // The following keys are assigned to admin only
 const adminRequiredKeys = ["admin"];
@@ -368,14 +368,14 @@ const SettingsSidebarContainer = ({
                                       textClassNames="px-3 text-emphasis font-medium text-sm"
                                       disableChevron
                                     />
-                                    {HOSTED_CAL_FEATURES && (
-                                      <VerticalTabItem
-                                        name={t("saml_config")}
-                                        href={`/settings/teams/${team.id}/sso`}
-                                        textClassNames="px-3 text-emphasis font-medium text-sm"
-                                        disableChevron
-                                      />
-                                    )}
+                                    {/*{HOSTED_CAL_FEATURES && (*/}
+                                    {/*  <VerticalTabItem*/}
+                                    {/*    name={t("saml_config")}*/}
+                                    {/*    href={`/settings/teams/${team.id}/sso`}*/}
+                                    {/*    textClassNames="px-3 text-emphasis font-medium text-sm"*/}
+                                    {/*    disableChevron*/}
+                                    {/*  />*/}
+                                    {/*)}*/}
                                   </>
                                 ) : null}
                               </>
