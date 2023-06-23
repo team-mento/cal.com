@@ -1,5 +1,6 @@
 import type { Page, Route } from "@playwright/test";
 import { expect } from "@playwright/test";
+import type { DefaultBodyType } from "msw";
 import { rest } from "msw";
 import { setupServer } from "msw/node";
 import { v4 as uuidv4 } from "uuid";
@@ -41,7 +42,7 @@ const addOauthBasedIntegration = async function ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     verify: (config: { requestHeaders: any; params: URLSearchParams; code: string }) => {
       status: number;
-      body: any;
+      body: DefaultBodyType;
     };
   };
 }) {
@@ -212,7 +213,7 @@ test.fixme("Integrations", () => {
   test.describe("Zoom App", () => {
     test("Can add integration", async ({ page, users }) => {
       const user = await users.create();
-      await user.login();
+      await user.apiLogin();
       await addZoomIntegration({ page });
       await page.waitForNavigation({
         url: (url) => {
@@ -224,7 +225,7 @@ test.fixme("Integrations", () => {
 
     test("can choose zoom as a location during booking", async ({ page, users }) => {
       const user = await users.create();
-      await user.login();
+      await user.apiLogin();
       const eventType = await addLocationIntegrationToFirstEvent({ user });
       await addZoomIntegration({ page });
       await page.waitForNavigation({
@@ -239,7 +240,7 @@ test.fixme("Integrations", () => {
       // POST https://api.zoom.us/v2/users/me/meetings
       // Verify       Header->  Authorization: "Bearer " + accessToken,
       /**
-         * {
+       * {
       topic: event.title,
       type: 2, // Means that this is a scheduled meeting
       start_time: event.startTime,
@@ -260,15 +261,15 @@ test.fixme("Integrations", () => {
         approval_type: 2,
         audio: "both",
         auto_recording: "none",
-        enforce_login: false,
+        enforce_apiLogin: false,
         registrants_email_notification: true,
       },
     };
-         */
+       */
     });
     test("Can disconnect from integration", async ({ page, users }) => {
       const user = await users.create();
-      await user.login();
+      await user.apiLogin();
       await addZoomIntegration({ page });
       await page.waitForNavigation({
         url: (url) => {
@@ -297,7 +298,7 @@ test.fixme("Integrations", () => {
   test.describe("Hubspot App", () => {
     test("Can add integration", async ({ page, users }) => {
       const user = await users.create();
-      await user.login();
+      await user.apiLogin();
       await addOauthBasedIntegration({
         page,
         slug: "hubspot",

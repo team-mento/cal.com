@@ -13,7 +13,7 @@ import { IS_TEAM_BILLING_ENABLED, WEBAPP_URL } from "@calcom/lib/constants";
 import { symmetricDecrypt } from "@calcom/lib/crypto";
 import { defaultCookies } from "@calcom/lib/default-cookies";
 import { isENVDev } from "@calcom/lib/env";
-import rateLimit from "@calcom/lib/rateLimit";
+import rateLimiter from "@calcom/lib/rateLimit";
 import slugify from "@calcom/lib/slugify";
 import prisma from "@calcom/prisma";
 import { IdentityProvider } from "@calcom/prisma/enums";
@@ -81,8 +81,14 @@ const providers: Provider[] = [
           metadata: true,
           identityProvider: true,
           password: true,
+          organizationId: true,
           twoFactorEnabled: true,
           twoFactorSecret: true,
+          organization: {
+            select: {
+              id: true,
+            },
+          },
           teams: {
             include: {
               team: true,
@@ -95,11 +101,14 @@ const providers: Provider[] = [
       if (!user) {
         throw new Error(ErrorCode.IncorrectUsernamePassword);
       }
-
-      const limiter = rateLimit({
-        intervalInMs: 60 * 1000, // 1 minute
+      const limiter = await rateLimiter();
+      const rateLimit = await limiter({
+        identifier: user.email,
       });
-      await limiter.check(10, user.email); // 10 requests per minute
+
+      if (!rateLimit.success) {
+        throw new Error(ErrorCode.RateLimitExceeded);
+      }
 
       if (user.identityProvider !== IdentityProvider.CAL && !credentials.totpCode) {
         throw new Error(ErrorCode.ThirdPartyIdentityProviderEnabled);
@@ -171,6 +180,7 @@ const providers: Provider[] = [
         name: user.name,
         role: validateRole(user.role),
         belongsToActiveTeam: hasActiveTeams,
+        organizationId: user.organizationId,
       };
     },
   }),
@@ -352,6 +362,7 @@ export const AUTH_OPTIONS: AuthOptions = {
             username: true,
             name: true,
             email: true,
+            organizationId: true,
             role: true,
             teams: {
               include: {
@@ -396,6 +407,7 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: user.role,
           impersonatedByUID: user?.impersonatedByUID,
           belongsToActiveTeam: user?.belongsToActiveTeam,
+          organizationId: user?.organizationId,
         };
       }
 
@@ -433,6 +445,7 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: existingUser.role,
           impersonatedByUID: token.impersonatedByUID as number,
           belongsToActiveTeam: token?.belongsToActiveTeam as boolean,
+          organizationId: token?.organizationId,
         };
       }
 
@@ -451,6 +464,7 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: token.role as UserPermissionRole,
           impersonatedByUID: token.impersonatedByUID as number,
           belongsToActiveTeam: token?.belongsToActiveTeam as boolean,
+          organizationId: token?.organizationId,
         },
       };
       return calendsoSession;
@@ -659,7 +673,12 @@ export const AUTH_OPTIONS: AuthOptions = {
             !existingUserWithEmail.username
           ) {
             await prisma.user.update({
-              where: { email: existingUserWithEmail.email },
+              where: {
+                email_username: {
+                  email: existingUserWithEmail.email,
+                  username: existingUserWithEmail.username!,
+                },
+              },
               data: {
                 // update the email to the IdP email
                 email: user.email,
