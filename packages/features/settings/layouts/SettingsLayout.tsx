@@ -283,6 +283,9 @@ const SettingsSidebarContainer = ({
                 {teams &&
                   teamMenuState &&
                   teams.map((team, index: number) => {
+                    if (!teamMenuState[index]) {
+                      return null;
+                    }
                     if (teamMenuState.some((teamState) => teamState.teamId === team.id))
                       return (
                         <Collapsible
