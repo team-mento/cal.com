@@ -34,7 +34,8 @@
         "NEXT_PUBLIC_WEBSITE_URL",
         "NEXT_PUBLIC_CALENDAR_KEY",
         "STRIPE_PREMIUM_PLAN_PRODUCT_ID",
-        "STRIPE_TEAM_MONTHLY_PRICE_ID"
+        "STRIPE_TEAM_MONTHLY_PRICE_ID",
+        "STRIPE_ORG_MONTHLY_PRICE_ID"
       ]
     },
     "@calcom/web#dx": {
@@ -175,6 +176,7 @@
   },
   "globalDependencies": ["yarn.lock"],
   "globalEnv": [
+    "ALLOWED_HOSTNAMES",
     "ANALYZE",
     "API_KEY_PREFIX",
     "APP_USER_NAME",
@@ -186,6 +188,7 @@
     "CI",
     "CLOSECOM_API_KEY",
     "CRON_API_KEY",
+    "CRON_ENABLE_APP_SYNC",
     "DAILY_API_KEY",
     "DAILY_SCALE_PLAN",
     "DEBUG",
@@ -249,6 +252,7 @@
     "QUICK",
     "RAILWAY_STATIC_URL",
     "RENDER_EXTERNAL_URL",
+    "RESERVED_SUBDOMAINS",
     "SALESFORCE_CONSUMER_KEY",
     "SALESFORCE_CONSUMER_SECRET",
     "SAML_ADMINS",
