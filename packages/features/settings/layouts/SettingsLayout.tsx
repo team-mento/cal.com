@@ -146,7 +146,11 @@ const useTabs = () => {
       tab.name = user?.name || "my_account";
       tab.icon = undefined;
       tab.avatar = avatar?.avatar || WEBAPP_URL + "/" + session?.data?.user?.username + "/avatar.png";
-    } else if (tab.href === "/settings/security" && user?.identityProvider === IdentityProvider.GOOGLE) {
+    } else if (
+      tab.href === "/settings/security" &&
+      user?.identityProvider === IdentityProvider.GOOGLE &&
+      !user?.twoFactorEnabled
+    ) {
       tab.children = tab?.children?.filter(
         (childTab) => childTab.href !== "/settings/security/two-factor-auth"
       );
@@ -180,11 +184,13 @@ const BackButtonInSidebar = ({ name }: { name: string }) => {
 interface SettingsSidebarContainerProps {
   className?: string;
   navigationIsOpenedOnMobile?: boolean;
+  bannersHeight?: number;
 }
 
 const SettingsSidebarContainer = ({
   className = "",
   navigationIsOpenedOnMobile,
+  bannersHeight,
 }: SettingsSidebarContainerProps) => {
   const { t } = useLocale();
   const router = useRouter();
@@ -213,6 +219,7 @@ const SettingsSidebarContainer = ({
 
   return (
     <nav
+      style={{ maxHeight: `calc(100vh - ${bannersHeight}px)`, top: `${bannersHeight}px` }}
       className={classNames(
         "no-scrollbar bg-sunny-100 fixed bottom-0 left-0 top-0 z-20 flex max-h-screen w-56 flex-col space-y-1 overflow-x-hidden overflow-y-scroll px-2 pb-3 transition-transform max-lg:z-10 lg:sticky lg:flex",
         className,
@@ -468,17 +475,10 @@ export default function SettingsLayout({
       hideHeadingOnMobile
       {...rest}
       SidebarContainer={
-        <>
-          {/* Mobile backdrop */}
-          {sideContainerOpen && (
-            <button
-              onClick={() => setSideContainerOpen(false)}
-              className="fixed left-0 top-0 z-10 h-full w-full bg-black/50">
-              <span className="sr-only">{t("hide_navigation")}</span>
-            </button>
-          )}
-          <SettingsSidebarContainer navigationIsOpenedOnMobile={sideContainerOpen} />
-        </>
+        <SidebarContainerElement
+          sideContainerOpen={sideContainerOpen}
+          setSideContainerOpen={setSideContainerOpen}
+        />
       }
       drawerState={state}
       MobileNavigationContainer={null}
@@ -486,7 +486,7 @@ export default function SettingsLayout({
         <MobileSettingsContainer onSideContainerOpen={() => setSideContainerOpen(!sideContainerOpen)} />
       }>
       <div className="flex flex-1 [&>*]:flex-1">
-        <div className="mx-auto max-w-full justify-center md:max-w-3xl">
+        <div className="mx-auto max-w-full justify-center md:max-w-4xl">
           <ShellHeader />
           <ErrorBoundary>
             <Suspense fallback={<Loader />}>{children}</Suspense>
@@ -496,6 +496,36 @@ export default function SettingsLayout({
     </Shell>
   );
 }
+
+const SidebarContainerElement = ({
+  sideContainerOpen,
+  bannersHeight,
+  setSideContainerOpen,
+}: SidebarContainerElementProps) => {
+  const { t } = useLocale();
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {sideContainerOpen && (
+        <button
+          onClick={() => setSideContainerOpen(false)}
+          className="fixed left-0 top-0 z-10 h-full w-full bg-black/50">
+          <span className="sr-only">{t("hide_navigation")}</span>
+        </button>
+      )}
+      <SettingsSidebarContainer
+        navigationIsOpenedOnMobile={sideContainerOpen}
+        bannersHeight={bannersHeight}
+      />
+    </>
+  );
+};
+
+type SidebarContainerElementProps = {
+  sideContainerOpen: boolean;
+  bannersHeight?: number;
+  setSideContainerOpen: React.Dispatch<React.SetStateAction<boolean>>;
+};
 
 export const getLayout = (page: React.ReactElement) => <SettingsLayout>{page}</SettingsLayout>;
 

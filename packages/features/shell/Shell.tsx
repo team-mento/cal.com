@@ -4,8 +4,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { NextRouter } from "next/router";
 import { useRouter } from "next/router";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
-import React, { Fragment, useEffect, useState, useRef, useMemo } from "react";
+import type { Dispatch, ReactNode, SetStateAction, ReactElement } from "react";
+import React, { Fragment, useEffect, useState, useRef, useMemo, cloneElement } from "react";
 import { Toaster } from "react-hot-toast";
 
 import dayjs from "@calcom/dayjs";
@@ -13,7 +13,6 @@ import { useIsEmbed } from "@calcom/embed-core/embed-iframe";
 import UnconfirmedBookingBadge from "@calcom/features/bookings/UnconfirmedBookingBadge";
 import ImpersonatingBanner from "@calcom/features/ee/impersonation/components/ImpersonatingBanner";
 import { OrgUpgradeBanner } from "@calcom/features/ee/organizations/components/OrgUpgradeBanner";
-import { useOrgBrandingValues } from "@calcom/features/ee/organizations/hooks";
 import HelpMenuItem from "@calcom/features/ee/support/components/HelpMenuItem";
 import { TeamsUpgradeBanner } from "@calcom/features/ee/teams/components";
 import { useFlagMap } from "@calcom/features/flags/context/provider";
@@ -75,6 +74,7 @@ import {
 } from "@calcom/ui/components/icon";
 import { Discord } from "@calcom/ui/components/icon/Discord";
 
+import { useOrgBranding } from "../ee/organizations/context/provider";
 import FreshChatProvider from "../ee/support/lib/freshchat/FreshChatProvider";
 import { NProgressNextRouter } from "./NProgressPageIndicator";
 import { TeamInviteBadge } from "./TeamInviteBadge";
@@ -214,7 +214,11 @@ const Layout = (props: LayoutProps) => {
       <div className="flex min-h-screen flex-col">
         <AppTop setBannersHeight={setBannersHeight} />
         <div className="flex flex-1" data-testid="dashboard-shell">
-          {props.SidebarContainer || <SideBarContainer bannersHeight={bannersHeight} />}
+          {props.SidebarContainer ? (
+            cloneElement(props.SidebarContainer, { bannersHeight })
+          ) : (
+            <SideBarContainer bannersHeight={bannersHeight} />
+          )}
           <div className="flex w-0 flex-1 flex-col">
             <MainContainer {...props} />
           </div>
@@ -236,7 +240,7 @@ type LayoutProps = {
   CTA?: ReactNode;
   large?: boolean;
   MobileNavigationContainer?: ReactNode;
-  SidebarContainer?: ReactNode;
+  SidebarContainer?: ReactElement;
   TopNavContainer?: ReactNode;
   drawerState?: DrawerState;
   HeadingLeftIcon?: ReactNode;
@@ -308,6 +312,7 @@ function UserDropdown({ small }: UserDropdownProps) {
   const { t } = useLocale();
   const { data: user } = useMeQuery();
   const { data: avatar } = useAvatarQuery();
+  const utils = trpc.useContext();
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore
@@ -320,16 +325,31 @@ function UserDropdown({ small }: UserDropdownProps) {
       });
   });
   const mutation = trpc.viewer.away.useMutation({
+    onMutate: async ({ away }) => {
+      await utils.viewer.me.cancel();
+
+      const previousValue = utils.viewer.me.getData();
+
+      if (previousValue) {
+        utils.viewer.me.setData(undefined, { ...previousValue, away });
+      }
+
+      return { previousValue };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousValue) {
+        utils.viewer.me.setData(undefined, context.previousValue);
+      }
+
+      showToast(t("toggle_away_error"), "error");
+    },
     onSettled() {
       utils.viewer.me.invalidate();
     },
   });
-  const utils = trpc.useContext();
   const [helpOpen, setHelpOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  if (!user) {
-    return null;
-  }
+
   const onHelpItemSelect = () => {
     setHelpOpen(false);
     setMenuOpen(false);
@@ -340,6 +360,7 @@ function UserDropdown({ small }: UserDropdownProps) {
   if (!user) {
     return null;
   }
+
   return (
     <Dropdown open={menuOpen}>
       <DropdownMenuTrigger asChild onClick={() => setMenuOpen((menuOpen) => !menuOpen)}>
@@ -493,9 +514,7 @@ const navigation: NavigationItemType[] = [
     isCurrent: ({ router, item }) => {
       const path = router.asPath.split("?")[0];
       // During Server rendering path is /v2/apps but on client it becomes /apps(weird..)
-      return (
-        (path.startsWith(item.href) || path.startsWith("/v2" + item.href)) && !path.includes("routing-forms/")
-      );
+      return path.startsWith(item.href) || path.startsWith("/v2" + item.href);
     },
     child: [
       {
@@ -505,9 +524,7 @@ const navigation: NavigationItemType[] = [
           const path = router.asPath.split("?")[0];
           // During Server rendering path is /v2/apps but on client it becomes /apps(weird..)
           return (
-            (path.startsWith(item.href) || path.startsWith("/v2" + item.href)) &&
-            !path.includes("routing-forms/") &&
-            !path.includes("/installed")
+            (path.startsWith(item.href) || path.startsWith("/v2" + item.href)) && !path.includes("/installed")
           );
         },
       },
@@ -528,10 +545,10 @@ const navigation: NavigationItemType[] = [
   },
   {
     name: "Routing Forms",
-    href: "/apps/routing-forms/forms",
+    href: "/routing-forms/forms",
     icon: FileText,
     isCurrent: ({ router }) => {
-      return router.asPath.startsWith("/apps/routing-forms/");
+      return router.asPath.startsWith("/routing-forms/");
     },
   },
   {
@@ -580,17 +597,9 @@ const Navigation = () => {
 };
 
 function useShouldDisplayNavigationItem(item: NavigationItemType) {
-  const { status } = useSession();
-  const { data: routingForms } = trpc.viewer.appById.useQuery(
-    { appId: "routing-forms" },
-    {
-      enabled: status === "authenticated" && requiredCredentialNavigationItems.includes(item.name),
-      trpc: {},
-    }
-  );
   const flags = useFlagMap();
   if (isKeyInObject(item.name, flags)) return flags[item.name];
-  return !requiredCredentialNavigationItems.includes(item.name) || routingForms?.isInstalled;
+  return true;
 }
 
 const defaultIsCurrent: NavigationItemType["isCurrent"] = ({ isChild, item, router }) => {
@@ -755,7 +764,8 @@ const getOrganizationUrl = (slug: string) =>
 
 function SideBar({ bannersHeight, user }: SideBarProps) {
   const { t, isLocaleReady } = useLocale();
-  const orgBranding = useOrgBrandingValues();
+  const orgBranding = useOrgBranding();
+  const isOrgBrandingDataFetched = orgBranding !== undefined;
 
   const publicPageUrl = useMemo(() => {
     if (!user?.organizationId) return `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user?.username}`;
@@ -828,7 +838,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
         className="desktop-transparent bg-muted border-muted fixed left-0 hidden h-full max-h-screen w-14 flex-col overflow-y-auto overflow-x-hidden border-r dark:bg-gradient-to-tr dark:from-[#2a2a2a] dark:to-[#1c1c1c] md:sticky md:flex lg:w-56 lg:px-3">
         <div className="flex h-full flex-col justify-between py-3 lg:pt-4">
           <header className="items-center justify-between md:hidden lg:flex">
-            {orgBranding ? (
+            {!isOrgBrandingDataFetched ? null : orgBranding ? (
               <Link href="/event-types" className="px-1.5">
                 <div className="flex items-center gap-2 font-medium">
                   <Avatar

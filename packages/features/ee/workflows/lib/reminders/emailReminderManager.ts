@@ -40,7 +40,8 @@ export const scheduleEmailReminder = async (
   workflowStepId: number,
   template: WorkflowTemplates,
   sender: string,
-  hideBranding?: boolean
+  hideBranding?: boolean,
+  seatReferenceUid?: string
 ) => {
   if (action === WorkflowActions.EMAIL_ADDRESS) return;
   const { startTime, endTime } = evt;
@@ -60,6 +61,8 @@ export const scheduleEmailReminder = async (
     console.error("Sendgrid credentials are missing from the .env file");
     return;
   }
+
+  const sandboxMode = process.env.NEXT_PUBLIC_IS_E2E ? true : false;
 
   let name = "";
   let attendeeName = "";
@@ -153,6 +156,11 @@ export const scheduleEmailReminder = async (
             html: emailContent.emailBody,
             batchId: batchIdResponse[1].batch_id,
             replyTo: evt.organizer.email,
+            mailSettings: {
+              sandboxMode: {
+                enable: sandboxMode,
+              },
+            },
           });
         }
       } else {
@@ -166,6 +174,11 @@ export const scheduleEmailReminder = async (
           html: emailContent.emailBody,
           batchId: batchIdResponse[1].batch_id,
           replyTo: evt.organizer.email,
+          mailSettings: {
+            sandboxMode: {
+              enable: sandboxMode,
+            },
+          },
         });
       }
     } catch (error) {
@@ -194,6 +207,11 @@ export const scheduleEmailReminder = async (
           batchId: batchIdResponse[1].batch_id,
           sendAt: scheduledDate.unix(),
           replyTo: evt.organizer.email,
+          mailSettings: {
+            sandboxMode: {
+              enable: sandboxMode,
+            },
+          },
         });
 
         await prisma.workflowReminder.create({
@@ -204,6 +222,7 @@ export const scheduleEmailReminder = async (
             scheduledDate: scheduledDate.toDate(),
             scheduled: true,
             referenceId: batchIdResponse[1].batch_id,
+            seatReferenceId: seatReferenceUid,
           },
         });
       } catch (error) {
@@ -218,6 +237,7 @@ export const scheduleEmailReminder = async (
           method: WorkflowMethods.EMAIL,
           scheduledDate: scheduledDate.toDate(),
           scheduled: false,
+          seatReferenceId: seatReferenceUid,
         },
       });
     }

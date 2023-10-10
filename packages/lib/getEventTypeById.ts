@@ -91,6 +91,7 @@ export default async function getEventTypeById({
       periodEndDate: true,
       periodCountCalendarDays: true,
       requiresConfirmation: true,
+      requiresBookerEmailVerification: true,
       recurringEvent: true,
       hideCalendarNotes: true,
       disableGuests: true,
@@ -117,9 +118,6 @@ export default async function getEventTypeById({
           slug: true,
           parentId: true,
           members: {
-            where: {
-              accepted: true,
-            },
             select: {
               role: true,
               user: {
@@ -238,6 +236,7 @@ export default async function getEventTypeById({
       type: true,
       key: true,
       userId: true,
+      teamId: true,
       appId: true,
       invalid: true,
     },
@@ -328,7 +327,7 @@ export default async function getEventTypeById({
 
   const currentUser = eventType.users.find((u) => u.id === userId);
   const t = await getTranslation(currentUser?.locale ?? "en", "common");
-  const integrations = await getEnabledApps(credentials);
+  const integrations = await getEnabledApps(credentials, true);
   const locationOptions = getLocationGroupedOptions(integrations, t);
   if (eventType.schedulingType === SchedulingType.MANAGED) {
     locationOptions.splice(0, 0, {
@@ -356,7 +355,11 @@ export default async function getEventTypeById({
           ...member.user,
           avatar: `${CAL_URL}/${member.user.username}/avatar.png`,
         };
-        return { ...user, eventTypes: user.eventTypes.map((evTy) => evTy.slug), membership: member.role };
+        return {
+          ...user,
+          eventTypes: user.eventTypes.map((evTy) => evTy.slug),
+          membership: member.role,
+        };
       })
     : [];
 
