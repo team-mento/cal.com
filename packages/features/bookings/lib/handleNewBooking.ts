@@ -346,6 +346,7 @@ async function ensureAvailableUsers(
   /** Let's start checking for availability */
   for (const user of eventType.users) {
     const {
+      dateRanges,
       busy: bufferedBusyTimes,
       workingHours,
       dateOverrides,
@@ -375,7 +376,6 @@ async function ensureAvailableUsers(
         continue;
       }
     }
-
     console.log("calendarBusyTimes==>>>", bufferedBusyTimes);
 
     let foundConflict = false;
@@ -1561,7 +1561,9 @@ async function handler(
       if (!Number.isNaN(paymentAppData.price) && paymentAppData.price > 0 && !!booking) {
         const credentialPaymentAppCategories = await prisma.credential.findMany({
           where: {
-            userId: organizerUser.id,
+            ...(paymentAppData.credentialId
+              ? { id: paymentAppData.credentialId }
+              : { userId: organizerUser.id }),
             app: {
               categories: {
                 hasSome: ["payment"],
@@ -1786,7 +1788,9 @@ async function handler(
       await prisma.credential.findFirstOrThrow({
         where: {
           appId: paymentAppData.appId,
-          userId: organizerUser.id,
+          ...(paymentAppData.credentialId
+            ? { id: paymentAppData.credentialId }
+            : { userId: organizerUser.id }),
         },
         select: {
           id: true,
@@ -2101,7 +2105,7 @@ async function handler(
     // Load credentials.app.categories
     const credentialPaymentAppCategories = await prisma.credential.findMany({
       where: {
-        userId: organizerUser.id,
+        ...(paymentAppData.credentialId ? { id: paymentAppData.credentialId } : { userId: organizerUser.id }),
         app: {
           categories: {
             hasSome: ["payment"],

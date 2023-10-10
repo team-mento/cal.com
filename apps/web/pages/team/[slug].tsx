@@ -65,7 +65,7 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio, isValidOrgDomain }
   }
 
   // slug is a route parameter, we don't want to forward it to the next route
-  const { slug: _slug, ...queryParamsToForward } = router.query;
+  const { slug: _slug, orgSlug: _orgSlug, user: _user, ...queryParamsToForward } = router.query;
 
   const EventTypes = () => (
     <ul className="border-subtle rounded-md border">
@@ -187,7 +187,7 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio, isValidOrgDomain }
           {!isBioEmpty && (
             <>
               <div
-                className="  text-subtle break-words text-sm [&_a]:text-blue-500 [&_a]:underline [&_a]:hover:text-blue-600"
+                className="text-subtle break-words text-sm [&_a]:text-blue-500 [&_a]:underline [&_a]:hover:text-blue-600"
                 dangerouslySetInnerHTML={{ __html: team.safeBio }}
               />
             </>
@@ -197,12 +197,19 @@ function TeamPage({ team, isUnpublished, markdownStrippedBio, isValidOrgDomain }
           <SubTeams />
         ) : (
           <>
-            {(showMembers.isOn || !team.eventTypes.length) && <Team team={team} />}
+            {(showMembers.isOn || !team.eventTypes.length) &&
+              (team.isPrivate ? (
+                <div className="w-full text-center">
+                  <h2 className="text-emphasis font-semibold">{t("you_cannot_see_team_members")}</h2>
+                </div>
+              ) : (
+                <Team team={team} />
+              ))}
             {!showMembers.isOn && team.eventTypes.length > 0 && (
               <div className="mx-auto max-w-3xl ">
                 <EventTypes />
 
-                {!team.hideBookATeamMember && (
+                {!(team.hideBookATeamMember || team.isPrivate) && (
                   <div>
                     <div className="relative mt-12">
                       <div className="absolute inset-0 flex items-center" aria-hidden="true">
