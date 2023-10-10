@@ -1,7 +1,7 @@
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 
 export default function usePublicPage() {
-  const router = useRouter();
+  const pathname = usePathname();
   const isPublicPage = [
     "/[user]",
     "/booking",
@@ -9,6 +9,6 @@ export default function usePublicPage() {
     "/reschedule",
     "/cancellation",
     "/cancellation-all",
-  ].find((route) => router.pathname.startsWith(route));
+  ].find((route) => pathname?.startsWith(route));
   return isPublicPage;
 }

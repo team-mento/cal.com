@@ -2,7 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
 import { getCsrfToken, signIn } from "next-auth/react";
-import { useRouter } from "next/router";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -46,6 +47,7 @@ export default function Login({
   samlProductID,
   totpEmail,
 }: inferSSRProps<typeof _getServerSideProps> & WithNonceProps) {
+  const searchParams = useSearchParams();
   const { t } = useLocale();
   const router = useRouter();
   const formSchema = z
@@ -74,7 +76,7 @@ export default function Login({
 
   const telemetry = useTelemetry();
 
-  let callbackUrl = typeof router.query?.callbackUrl === "string" ? router.query.callbackUrl : "";
+  let callbackUrl = searchParams.get("callbackUrl") || "";
 
   if (/"\//.test(callbackUrl)) callbackUrl = callbackUrl.substring(1);
 
