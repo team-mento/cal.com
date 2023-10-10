@@ -1843,8 +1843,6 @@ async function handler(
           newBookingData.attendees.createMany.data = attendeesData.filter(
             (attendee) => attendee.email === bookerEmail
           );
-        } else {
-          newBookingData.attendees.createMany.data = originalRescheduledBooking.attendees;
         }
       }
       if (originalRescheduledBooking.recurringEventId) {

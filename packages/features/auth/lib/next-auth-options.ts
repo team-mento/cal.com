@@ -99,7 +99,7 @@ const providers: Provider[] = [
 
       // Don't leak information about it being username or password that is invalid
       if (!user) {
-        throw new Error(ErrorCode.IncorrectUsernamePassword);
+        throw new Error(ErrorCode.IncorrectEmailPassword);
       }
 
       await checkRateLimitAndThrowError({
@@ -111,16 +111,16 @@ const providers: Provider[] = [
       }
 
       if (!user.password && user.identityProvider !== IdentityProvider.CAL && !credentials.totpCode) {
-        throw new Error(ErrorCode.IncorrectUsernamePassword);
+        throw new Error(ErrorCode.IncorrectEmailPassword);
       }
 
       if (user.password || !credentials.totpCode) {
         if (!user.password) {
-          throw new Error(ErrorCode.IncorrectUsernamePassword);
+          throw new Error(ErrorCode.IncorrectEmailPassword);
         }
         const isCorrectPassword = await verifyPassword(credentials.password, user.password);
         if (!isCorrectPassword) {
-          throw new Error(ErrorCode.IncorrectUsernamePassword);
+          throw new Error(ErrorCode.IncorrectEmailPassword);
         }
       }
 
@@ -348,7 +348,7 @@ export const AUTH_OPTIONS: AuthOptions = {
   },
   providers,
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       const autoMergeIdentities = async () => {
         const existingUser = await prisma.user.findFirst({
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
