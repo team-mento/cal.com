@@ -18,7 +18,7 @@ import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import prisma from "@calcom/prisma";
-import { Alert, Button } from "@calcom/ui";
+import { Button } from "@calcom/ui";
 import { ArrowLeft, Lock } from "@calcom/ui/components/icon";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -48,8 +48,6 @@ export default function Login({
   totpEmail,
 }: inferSSRProps<typeof _getServerSideProps> & WithNonceProps) {
   const searchParams = useSearchParams();
-  const isTeamInvite = searchParams.get("teamInvite");
-
   const { t } = useLocale();
   const router = useRouter();
   const formSchema = z
@@ -183,9 +181,6 @@ export default function Login({
             ? LoginFooter
             : null
         }>
-        {isTeamInvite && (
-          <Alert severity="info" message={t("signin_or_signup_to_accept_invite")} className="mb-4 mt-4" />
-        )}
         <FormProvider {...methods}>
           {/*<form onSubmit={methods.handleSubmit(onSubmit)} noValidate data-testid="login-form">*/}
           {/*  <div>*/}

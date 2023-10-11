@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ComponentProps } from "react";
 import React, { Suspense, useEffect, useState } from "react";
 
+import { useOrgBranding } from "@calcom/features/ee/organizations/context/provider";
 import Shell from "@calcom/features/shell/Shell";
 import { classNames } from "@calcom/lib";
 import { WEBAPP_URL } from "@calcom/lib/constants";
@@ -16,7 +17,6 @@ import type { VerticalTabItemProps } from "@calcom/ui";
 import { Badge, Button, ErrorBoundary, Skeleton, useMeta, VerticalTabItem } from "@calcom/ui";
 import {
   ArrowLeft,
-  Building,
   ChevronDown,
   ChevronRight,
   Key,
@@ -75,7 +75,6 @@ const tabs: VerticalTabItemProps[] = [
   {
     name: "organization",
     href: "/settings/organizations",
-    icon: Building,
     children: [
       {
         name: "profile",
@@ -136,6 +135,7 @@ const organizationRequiredKeys = ["organization"];
 const useTabs = () => {
   const session = useSession();
   const { data: user } = trpc.viewer.me.useQuery();
+  const orgBranding = useOrgBranding();
 
   const isAdmin = session.data?.user.role === UserPermissionRole.ADMIN;
 
@@ -143,7 +143,10 @@ const useTabs = () => {
     if (tab.href === "/settings/my-account") {
       tab.name = user?.name || "my_account";
       tab.icon = undefined;
-      tab.avatar = WEBAPP_URL + "/" + session?.data?.user?.username + "/avatar.png";
+      tab.avatar = `${orgBranding?.fullDomain ?? WEBAPP_URL}/${session?.data?.user?.username}/avatar.png`;
+    } else if (tab.href === "/settings/organizations") {
+      tab.name = orgBranding?.name || "organization";
+      tab.avatar = `${orgBranding?.fullDomain}/org/${orgBranding?.slug}/avatar.png`;
     } else if (
       tab.href === "/settings/security" &&
       user?.identityProvider === IdentityProvider.GOOGLE &&
