@@ -23,12 +23,9 @@ import {
   useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
-import { SystemField } from "@calcom/features/bookings/lib/SystemField";
+import { SMS_REMINDER_NUMBER_FIELD, SystemField } from "@calcom/features/bookings/lib/SystemField";
 import { getBookingWithResponses } from "@calcom/features/bookings/lib/get-booking";
-import {
-  getBookingFieldsWithSystemFields,
-  SMS_REMINDER_NUMBER_FIELD,
-} from "@calcom/features/bookings/lib/getBookingFields";
+import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/getBookingFields";
 import { parseRecurringEvent } from "@calcom/lib";
 import {
   formatToLocalizedDate,
@@ -95,7 +92,7 @@ const querySchema = z.object({
 });
 
 export default function Success(props: SuccessProps) {
-  const { t } = useLocale();
+  const { t, i18n } = useLocale();
   const router = useRouter();
   const routerQuery = useRouterQuery();
   const pathname = usePathname();
@@ -112,7 +109,8 @@ export default function Success(props: SuccessProps) {
   const attendeeTimeZone = props?.bookingInfo?.attendees.find(
     (attendee) => attendee.email === email
   )?.timeZone;
-  const tz = isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : props.tz ? props.tz : timeZone();
+
+  const tz = props.tz ? props.tz : isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : timeZone();
 
   const location = props.bookingInfo.location as ReturnType<typeof getEventLocationValue>;
 
@@ -479,6 +477,21 @@ export default function Success(props: SuccessProps) {
                         </div>
                       </>
                     )}
+                    {props.paymentStatus && (
+                      <>
+                        <div className="mt-3 font-medium">
+                          {props.paymentStatus.paymentOption === "HOLD"
+                            ? t("complete_your_booking")
+                            : t("payment")}
+                        </div>
+                        <div className="col-span-2 mb-2 mt-3">
+                          {new Intl.NumberFormat(i18n.language, {
+                            style: "currency",
+                            currency: props.paymentStatus.currency,
+                          }).format(props.paymentStatus.amount / 100.0)}
+                        </div>
+                      </>
+                    )}
                     {bookingInfo?.description && (
                       <>
                         <div className="mt-9 font-medium">{t("additional_notes")}</div>
@@ -714,7 +727,7 @@ export default function Success(props: SuccessProps) {
               </div>
               {isGmail && (
                 <Alert
-                  className="main -mb-20 mt-4 inline-block ltr:text-right rtl:text-right sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
+                  className="main -mb-20 mt-4 inline-block ltr:text-left rtl:text-right sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
                   severity="warning"
                   message={
                     <div>
@@ -1116,6 +1129,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     select: {
       success: true,
       refunded: true,
+      currency: true,
+      amount: true,
+      paymentOption: true,
     },
   });
 

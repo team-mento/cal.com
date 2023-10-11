@@ -1,11 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
-import getAppKeysFromSlug from "@calcom/app-store/_utils/getAppKeysFromSlug";
-import { DailyLocationType } from "@calcom/app-store/locations";
-import getApps from "@calcom/app-store/utils";
-import { getUsersCredentials } from "@calcom/lib/server/getUsersCredentials";
-import type { PrismaClient } from "@calcom/prisma/client";
+import type { PrismaClient } from "@calcom/prisma";
 import { SchedulingType } from "@calcom/prisma/enums";
 
 import { TRPCError } from "@trpc/server";

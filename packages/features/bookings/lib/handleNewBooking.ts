@@ -2,6 +2,7 @@ import type { App, Attendee, Credential, EventTypeCustomInput } from "@prisma/cl
 import { Prisma } from "@prisma/client";
 import async from "async";
 import { isValidPhoneNumber } from "libphonenumber-js";
+// eslint-disable-next-line no-restricted-imports
 import { cloneDeep } from "lodash";
 import type { NextApiRequest } from "next";
 import short, { uuid } from "short-uuid";
@@ -545,7 +546,7 @@ async function getOriginalRescheduledBooking(uid: string, seatsEventType?: boole
   });
 }
 
-function getBookingData({
+async function getBookingData({
   req,
   isNotAnApiCall,
   eventType,
@@ -615,7 +616,7 @@ function getBookingData({
           }
         });
 
-  const reqBody = bookingDataSchema.parse(req.body);
+  const reqBody = await bookingDataSchema.parseAsync(req.body);
 
   // Work with Typescript to require reqBody.end
   type ReqBodyWithoutEnd = z.infer<typeof bookingDataSchema>;
@@ -752,7 +753,7 @@ async function handler(
     smsReminderNumber,
     rescheduleReason,
     ...reqBody
-  } = getBookingData({
+  } = await getBookingData({
     req,
     isNotAnApiCall,
     eventType,

@@ -5,12 +5,7 @@ import Link from "next/link";
 import { Toaster } from "react-hot-toast";
 import type { z } from "zod";
 
-import {
-  sdkActionManager,
-  useEmbedNonStylesConfig,
-  useEmbedStyles,
-  useIsEmbed,
-} from "@calcom/embed-core/embed-iframe";
+import { sdkActionManager, useEmbedNonStylesConfig, useEmbedStyles } from "@calcom/embed-core/embed-iframe";
 import { getSlugOrRequestedSlug } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { orgDomainConfig } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { EventTypeDescriptionLazy as EventTypeDescription } from "@calcom/features/eventtypes/components";
@@ -36,6 +31,7 @@ import { ssrInit } from "@server/lib/ssr";
 
 export function UserPage(props: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const { users, profile, eventTypes, markdownStrippedBio, entity } = props;
+
   const [user] = users; //To be used when we only have a single user, not dynamic group
   useTheme(profile.theme);
   const { t } = useLocale();
@@ -83,6 +79,10 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
           profile: { name: `${profile.name}`, image: null },
           users: [{ username: `${user.username}`, name: `${user.name}` }],
         }}
+        nextSeoProps={{
+          noindex: !profile.allowSEOIndexing,
+          nofollow: !profile.allowSEOIndexing,
+        }}
       />
 
       <div className={classNames(shouldAlignCentrally ? "mx-auto" : "", isEmbed ? "max-w-3xl" : "")}>
@@ -94,7 +94,7 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
           )}>
           <div className="mb-8 text-center">
             <Avatar imageSrc={profile.image} size="xl" alt={profile.name} />
-            <h1 className="font-cal text-emphasis mb-1 text-3xl">
+            <h1 className="font-cal text-emphasis mb-1 text-3xl" data-testid="name-title">
               {profile.name}
               {user.verified && (
                 <Verified className=" mx-1 -mt-1 inline h-6 w-6 fill-blue-500 text-white dark:text-black" />
@@ -215,6 +215,7 @@ export type UserPageProps = {
     theme: string | null;
     brandColor: string;
     darkBrandColor: string;
+    allowSEOIndexing: boolean;
   };
   users: Pick<User, "away" | "name" | "username" | "bio" | "verified">[];
   themeBasis: string | null;
@@ -277,6 +278,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
       away: true,
       verified: true,
       allowDynamicBooking: true,
+      allowSEOIndexing: true,
     },
   });
 
@@ -316,6 +318,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
     theme: user.theme,
     brandColor: user.brandColor,
     darkBrandColor: user.darkBrandColor,
+    allowSEOIndexing: user.allowSEOIndexing ?? true,
   };
 
   const eventTypesWithHidden = await getEventTypesWithHiddenFromDB(user.id);
