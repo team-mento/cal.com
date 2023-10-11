@@ -1,7 +1,7 @@
 import type { Page, Frame } from "@playwright/test";
 import { test, expect } from "@playwright/test";
 
-// eslint-disable-next-line
+// eslint-disable-next-line no-restricted-imports
 import prisma from "@calcom/prisma";
 
 export function todo(title: string) {

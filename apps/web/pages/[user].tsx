@@ -49,7 +49,6 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
     orgSlug: _orgSlug,
     ...query
   } = useRouterQuery();
-  const nameOrUsername = user.name || user.username || "";
 
   /*
    const telemetry = useTelemetry();
