@@ -489,7 +489,6 @@ async function ensureAvailableUsers(
       JSON.stringify({ bufferedBusyTimes, dateRanges, isRecurringEvent: eventType.recurringEvent })
     );
 
-    // TODO[kball]: Does this cause problems with our override for booking recurring even with conflicts?
     if (!dateRanges.length) {
       // user does not have availability at this time, skip user.
       continue;
@@ -498,7 +497,7 @@ async function ensureAvailableUsers(
     let foundConflict = false;
     try {
       if (!eventType.recurringEvent || recurringDatesInfo?.currentRecurringIndex === 0) {
-        foundConflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, eventType.length);
+        foundConflict = checkForConflicts(bufferedBusyTimes, input.dateFrom, duration);
       }
     } catch {
       log.debug({

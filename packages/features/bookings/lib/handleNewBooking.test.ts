@@ -869,8 +869,9 @@ describe("handleNewBooking", () => {
               body: mockBookingData,
             });
 
+            // MENTO different error message
             await expect(async () => await handleNewBooking(req)).rejects.toThrowError(
-              "No available users found"
+              "Please try again or contact concierge@mento.co for support."
             );
           },
           timeout
@@ -956,8 +957,9 @@ describe("handleNewBooking", () => {
               body: mockBookingData,
             });
 
+            // MENTO different error message
             await expect(async () => await handleNewBooking(req)).rejects.toThrowError(
-              "No available users found"
+              "Please try again or contact concierge@mento.co for support."
             );
           },
           timeout
