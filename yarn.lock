@@ -3673,10 +3673,11 @@ __metadata:
   resolution: "@calcom/prisma@workspace:packages/prisma"
   dependencies:
     "@calcom/lib": "*"
-    "@prisma/client": ^5.0.0
-    "@prisma/generator-helper": ^5.0.0
+    "@prisma/client": ^5.2.0
+    "@prisma/extension-accelerate": ^0.6.2
+    "@prisma/generator-helper": ^5.2.0
     npm-run-all: ^4.1.5
-    prisma: ^5.0.0
+    prisma: ^5.2.0
     ts-node: ^10.9.1
     zod: ^3.22.2
     zod-prisma: ^0.5.4
@@ -4150,113 +4151,6 @@ __metadata:
   dependencies:
     "@calcom/lib": "*"
     "@calcom/types": "*"
-  languageName: unknown
-  linkType: soft
-
-"@calcom/website@workspace:apps/website":
-  version: 0.0.0-use.local
-  resolution: "@calcom/website@workspace:apps/website"
-  dependencies:
-    "@algora/sdk": ^0.1.2
-    "@calcom/app-store": "*"
-    "@calcom/config": "*"
-    "@calcom/dayjs": "*"
-    "@calcom/embed-react": "workspace:^"
-    "@calcom/features": "*"
-    "@calcom/lib": "*"
-    "@calcom/prisma": "*"
-    "@calcom/tsconfig": "*"
-    "@calcom/ui": "*"
-    "@datocms/cma-client-node": ^2.0.0
-    "@floating-ui/react-dom": ^1.0.0
-    "@graphql-codegen/cli": ^5.0.0
-    "@graphql-codegen/typed-document-node": ^5.0.1
-    "@graphql-codegen/typescript": ^4.0.1
-    "@graphql-codegen/typescript-operations": ^4.0.1
-    "@graphql-typed-document-node/core": ^3.2.0
-    "@headlessui/react": ^1.5.0
-    "@heroicons/react": ^1.0.6
-    "@hookform/resolvers": ^2.9.7
-    "@juggle/resize-observer": ^3.4.0
-    "@next/bundle-analyzer": ^13.1.6
-    "@radix-ui/react-accordion": ^1.0.0
-    "@radix-ui/react-dropdown-menu": ^2.0.5
-    "@radix-ui/react-navigation-menu": ^1.0.0
-    "@radix-ui/react-portal": ^1.0.0
-    "@radix-ui/react-slider": ^1.0.0
-    "@radix-ui/react-tabs": ^1.0.0
-    "@radix-ui/react-tooltip": ^1.0.0
-    "@stripe/stripe-js": ^1.35.0
-    "@tanstack/react-query": ^4.3.9
-    "@typeform/embed-react": ^1.2.4
-    "@types/bcryptjs": ^2.4.2
-    "@types/debounce": ^1.2.1
-    "@types/gtag.js": ^0.0.10
-    "@types/micro": 7.3.7
-    "@types/node": 16.9.1
-    "@types/react": 18.0.26
-    "@types/react-gtm-module": ^2.0.1
-    "@types/xml2js": ^0.4.11
-    "@vercel/analytics": ^0.1.6
-    "@vercel/edge-functions-ui": ^0.2.1
-    "@vercel/og": ^0.5.0
-    autoprefixer: ^10.4.12
-    bcryptjs: ^2.4.3
-    clsx: ^1.2.1
-    cobe: ^0.4.1
-    concurrently: ^7.6.0
-    cross-env: ^7.0.3
-    datocms-structured-text-to-plain-text: ^2.0.4
-    datocms-structured-text-utils: ^2.0.4
-    debounce: ^1.2.1
-    dotenv: ^16.3.1
-    enquirer: ^2.4.1
-    env-cmd: ^10.1.0
-    eslint: ^8.34.0
-    fathom-client: ^3.5.0
-    globby: ^13.1.3
-    graphql: ^16.8.0
-    graphql-request: ^6.1.0
-    gray-matter: ^4.0.3
-    gsap: ^3.11.0
-    i18n-unused: ^0.13.0
-    iframe-resizer-react: ^1.1.0
-    keen-slider: ^6.8.0
-    lucide-react: ^0.171.0
-    micro: ^10.0.1
-    next: ^13.4.6
-    next-auth: ^4.22.1
-    next-axiom: ^0.17.0
-    next-i18next: ^13.2.2
-    next-seo: ^6.0.0
-    playwright: ^1.31.2
-    postcss: ^8.4.18
-    prism-react-renderer: ^1.3.5
-    react: ^18.2.0
-    react-confetti: ^6.0.1
-    react-datocms: ^3.1.0
-    react-device-detect: ^2.2.2
-    react-dom: ^18.2.0
-    react-fast-marquee: ^1.3.5
-    react-github-btn: ^1.4.0
-    react-hook-form: ^7.43.3
-    react-hot-toast: ^2.3.0
-    react-live-chat-loader: ^2.8.1
-    react-merge-refs: 1.1.0
-    react-twemoji: ^0.3.0
-    react-use-measure: ^2.1.1
-    react-wrap-balancer: ^1.0.0
-    remark: ^14.0.2
-    remark-html: ^14.0.1
-    remeda: ^1.24.1
-    stripe: ^9.16.0
-    tailwind-merge: ^1.13.2
-    tailwindcss: ^3.3.1
-    ts-node: ^10.9.1
-    typescript: ^4.9.4
-    wait-on: ^7.0.1
-    xml2js: ^0.6.0
-    zod: ^3.22.2
   languageName: unknown
   linkType: soft
 
@@ -6971,17 +6865,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@prisma/client@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@prisma/client@npm:5.0.0"
+"@prisma/client@npm:^5.2.0":
+  version: 5.2.0
+  resolution: "@prisma/client@npm:5.2.0"
   dependencies:
-    "@prisma/engines-version": 4.17.0-26.6b0aef69b7cdfc787f822ecd7cdc76d5f1991584
+    "@prisma/engines-version": 5.2.0-25.2804dc98259d2ea960602aca6b8e7fdc03c1758f
   peerDependencies:
     prisma: "*"
   peerDependenciesMeta:
     prisma:
       optional: true
-  checksum: 332c2af44e880ffc9dd1223992bf6f45910094c7a3a540cbbfdda45d6caf3e82998376338abdf85e34a12f1082ae932f2385d6396c62fe4bba7ec6b84de54466
+  checksum: ad523b7a54e31d365ecac7bdb89f5a89f62e616f5f567f5dd5060e86b122253a4652ea778c0ccbab31906e2170110e808839fbae7ee91a4fd16a8282ee86f5f1
   languageName: node
   linkType: hard
 
@@ -6996,40 +6890,49 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@prisma/debug@npm:5.1.1":
-  version: 5.1.1
-  resolution: "@prisma/debug@npm:5.1.1"
+"@prisma/debug@npm:5.2.0":
+  version: 5.2.0
+  resolution: "@prisma/debug@npm:5.2.0"
   dependencies:
     "@types/debug": 4.1.8
     debug: 4.3.4
     strip-ansi: 6.0.1
-  checksum: ab073c70aac7f8240b70c6021b7f46b34a0bbbe6a220fe503cd34bfd6c7b9890916f42c6bc7b7345a3225f8ea9d9744064e716fe39fb2d40e44c752689ee3415
+  checksum: 49b71106afb9666fc3c95cd4368bc7664a6deb9b9be15e9de98af5e78b56c6d7df1ff8a8a2dcdceac330f6d32f94d10c503ee55d60b5b9b4df36ac438da66004
   languageName: node
   linkType: hard
 
-"@prisma/engines-version@npm:4.17.0-26.6b0aef69b7cdfc787f822ecd7cdc76d5f1991584":
-  version: 4.17.0-26.6b0aef69b7cdfc787f822ecd7cdc76d5f1991584
-  resolution: "@prisma/engines-version@npm:4.17.0-26.6b0aef69b7cdfc787f822ecd7cdc76d5f1991584"
-  checksum: 8fcbceef3b554ee7fa404bead50be5286412a097b21723272aff298b289caf2802b01b84bb85c4c9f3b592eeac114c8d6e79db083f271dc8c54f453b4a515233
+"@prisma/engines-version@npm:5.2.0-25.2804dc98259d2ea960602aca6b8e7fdc03c1758f":
+  version: 5.2.0-25.2804dc98259d2ea960602aca6b8e7fdc03c1758f
+  resolution: "@prisma/engines-version@npm:5.2.0-25.2804dc98259d2ea960602aca6b8e7fdc03c1758f"
+  checksum: 7a0fde44dad7902aef0035a30073c8e3178bccbaf65f688583cf3db94e36d160fd0a52cae8b6422b670facdbd4201861e1d6e2c7371d57ef27b58a2e1c524213
   languageName: node
   linkType: hard
 
-"@prisma/engines@npm:5.0.0":
-  version: 5.0.0
-  resolution: "@prisma/engines@npm:5.0.0"
-  checksum: 31271d85c29709059f91051d4cef7acf874014ba0128b674ca2f842e5fac61d3011e9db246dfa67ba4803081d36dbc9e31492716bab677128588343c92117b2b
+"@prisma/engines@npm:5.2.0":
+  version: 5.2.0
+  resolution: "@prisma/engines@npm:5.2.0"
+  checksum: c4d0a424b211ab5f02c977bd87e03a151a7d297d8448b08ef9de931a0dcebbbea76cdefc15a17fd06dacac692b164fd88b32c23eb84f7822dbaf3d0885b700a7
   languageName: node
   linkType: hard
 
-"@prisma/generator-helper@npm:^5.0.0":
-  version: 5.1.1
-  resolution: "@prisma/generator-helper@npm:5.1.1"
+"@prisma/extension-accelerate@npm:^0.6.2":
+  version: 0.6.2
+  resolution: "@prisma/extension-accelerate@npm:0.6.2"
+  peerDependencies:
+    "@prisma/client": ">=4.16.1"
+  checksum: bf506942660bd7cff1de0280932be3a9b4233cf6acb7cb07cdd8fcc0e0f2e30a23b261db3a7470b36eaaa1737d14ca59fc72024cab7899ddebfc4aa2056c9838
+  languageName: node
+  linkType: hard
+
+"@prisma/generator-helper@npm:^5.2.0":
+  version: 5.2.0
+  resolution: "@prisma/generator-helper@npm:5.2.0"
   dependencies:
-    "@prisma/debug": 5.1.1
+    "@prisma/debug": 5.2.0
     "@types/cross-spawn": 6.0.2
     cross-spawn: 7.0.3
     kleur: 4.1.5
-  checksum: e576e0396031e0f90442c5fd37c0ee13894d03d89d4d9c572e787268156fcda960a969773c37030f3d66271c56424c34c988ac15c75be5dde5f71c6be7266bf6
+  checksum: aa3a617026917135f767a22b0c77582cd14f46de76a842898cf8923e9c49cf32ae2d519fe953d39355bf2fbdf9015ad5cb720b60d66bc0a437ffcdb1fec1c57a
   languageName: node
   linkType: hard
 
@@ -15730,26 +15633,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"concurrently@npm:^7.6.0":
-  version: 7.6.0
-  resolution: "concurrently@npm:7.6.0"
-  dependencies:
-    chalk: ^4.1.0
-    date-fns: ^2.29.1
-    lodash: ^4.17.21
-    rxjs: ^7.0.0
-    shell-quote: ^1.7.3
-    spawn-command: ^0.0.2-1
-    supports-color: ^8.1.0
-    tree-kill: ^1.2.2
-    yargs: ^17.3.1
-  bin:
-    conc: dist/bin/concurrently.js
-    concurrently: dist/bin/concurrently.js
-  checksum: f705c9a7960f1b16559ca64958043faeeef6385c0bf30a03d1375e15ab2d96dba4f8166f1bbbb1c85e8da35ca0ce3c353875d71dff2aa132b2357bb533b3332e
-  languageName: node
-  linkType: hard
-
 "console-browserify@npm:^1.1.0":
   version: 1.2.0
   resolution: "console-browserify@npm:1.2.0"
@@ -16124,7 +16007,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-spawn@npm:7.0.3, cross-spawn@npm:^7.0.0, cross-spawn@npm:^7.0.1, cross-spawn@npm:^7.0.2, cross-spawn@npm:^7.0.3":
+"cross-spawn@npm:7.0.3, cross-spawn@npm:^7.0.0, cross-spawn@npm:^7.0.2, cross-spawn@npm:^7.0.3":
   version: 7.0.3
   resolution: "cross-spawn@npm:7.0.3"
   dependencies:
@@ -16527,52 +16410,6 @@ __metadata:
   version: 2.29.3
   resolution: "date-fns@npm:2.29.3"
   checksum: e01cf5b62af04e05dfff921bb9c9933310ed0e1ae9a81eb8653452e64dc841acf7f6e01e1a5ae5644d0337e9a7f936175fd2cb6819dc122fdd9c5e86c56be484
-  languageName: node
-  linkType: hard
-
-"date-fns@npm:^2.29.1":
-  version: 2.30.0
-  resolution: "date-fns@npm:2.30.0"
-  dependencies:
-    "@babel/runtime": ^7.21.0
-  checksum: f7be01523282e9bb06c0cd2693d34f245247a29098527d4420628966a2d9aad154bd0e90a6b1cf66d37adcb769cd108cf8a7bd49d76db0fb119af5cdd13644f4
-  languageName: node
-  linkType: hard
-
-"datocms-listen@npm:^0.1.9":
-  version: 0.1.15
-  resolution: "datocms-listen@npm:0.1.15"
-  dependencies:
-    "@0no-co/graphql.web": ^1.0.1
-  checksum: 243fec6f8c07d35f8d8d206ded45c4b8cfeb22907bba23d2180af6284903e4af1146c89e08ad0f68977193d42530323c53d0d906f7cf9f1ba92490ed11386e8c
-  languageName: node
-  linkType: hard
-
-"datocms-structured-text-generic-html-renderer@npm:^2.0.1, datocms-structured-text-generic-html-renderer@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "datocms-structured-text-generic-html-renderer@npm:2.0.4"
-  dependencies:
-    datocms-structured-text-utils: ^2.0.4
-  checksum: 58831e7bbcf8b8a18eb79af482898ba59b22ca18a52fafd9e855dce91933c26d0ae5ba53f002b1f34f4ebc106eb679232f3d00c560a4921b648a1787546f32b2
-  languageName: node
-  linkType: hard
-
-"datocms-structured-text-to-plain-text@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "datocms-structured-text-to-plain-text@npm:2.0.4"
-  dependencies:
-    datocms-structured-text-generic-html-renderer: ^2.0.4
-    datocms-structured-text-utils: ^2.0.4
-  checksum: 24b36817849e6f8959bcdb3082f25487584d0f376765c0f1f94f3b549c10502220ea1c4936e6b323cc68d84da75488ce94d68528d9acecb835f3e5bcfb76a84a
-  languageName: node
-  linkType: hard
-
-"datocms-structured-text-utils@npm:^2.0.1, datocms-structured-text-utils@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "datocms-structured-text-utils@npm:2.0.4"
-  dependencies:
-    array-flatten: ^3.0.0
-  checksum: 9e10d4faae0c47eebeee028cb0e8c459ecea6fb3dc4950ed0ab310d9b7f18d8ee014071142a42098b20c77264b60a2dd928e9a6462ae4ffea50a70d867f82f34
   languageName: node
   linkType: hard
 
@@ -28306,14 +28143,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prisma@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "prisma@npm:5.0.0"
+"prisma@npm:^5.2.0":
+  version: 5.2.0
+  resolution: "prisma@npm:5.2.0"
   dependencies:
-    "@prisma/engines": 5.0.0
+    "@prisma/engines": 5.2.0
   bin:
     prisma: build/index.js
-  checksum: fdc62377853d25b4db664c736fd0b08d2b0c6db5752e6f6c6ec3bda77634cfb79e6f49d52d4b8f54ddb8ec9c28fc3fb0c13f95caf61085447d0929e258af9284
+  checksum: 8b99ab5a5f801c72b2eb1809db980bd104dfd699cb14c5d5db5b675566c89e46501267399bb2f02bc3ea8fb86fc2f029cccd7178768109dc4d198bc93552b1da
   languageName: node
   linkType: hard
 
@@ -36292,11 +36129,5 @@ __metadata:
   version: 1.0.5
   resolution: "zwitch@npm:1.0.5"
   checksum: 28a1bebacab3bc60150b6b0a2ba1db2ad033f068e81f05e4892ec0ea13ae63f5d140a1d692062ac0657840c8da076f35b94433b5f1c329d7803b247de80f064a
-  languageName: node
-  linkType: hard
-"zwitch@npm:^2.0.0, zwitch@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "zwitch@npm:2.0.4"
-  checksum: f22ec5fc2d5f02c423c93d35cdfa83573a3a3bd98c66b927c368ea4d0e7252a500df2a90a6b45522be536a96a73404393c958e945fdba95e6832c200791702b6
   languageName: node
   linkType: hard
