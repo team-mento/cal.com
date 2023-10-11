@@ -23,6 +23,7 @@ import EventManager from "@calcom/core/EventManager";
 import { getEventName } from "@calcom/core/event";
 import { getUserAvailability } from "@calcom/core/getUserAvailability";
 import { deleteMeeting } from "@calcom/core/videoClient";
+import type { ConfigType, Dayjs } from "@calcom/dayjs";
 import dayjs from "@calcom/dayjs";
 import {
   sendAttendeeRequestEmail,
@@ -85,6 +86,7 @@ import type {
   Person,
 } from "@calcom/types/Calendar";
 import type { EventResult, PartialReference } from "@calcom/types/EventManager";
+import type { WorkingHours, TimeRange as DateOverride } from "@calcom/types/schedule";
 
 import type { EventTypeInfo } from "../../webhooks/lib/sendPayload";
 import getBookingResponsesSchema from "./getBookingResponsesSchema";
@@ -189,6 +191,63 @@ const getAllCredentials = async (
   }
 
   return allCredentials;
+};
+
+const isWithinAvailableHours = (
+  timeSlot: { start: ConfigType; end: ConfigType },
+  {
+    workingHours,
+    dateOverrides,
+    organizerTimeZone,
+    inviteeTimeZone,
+  }: {
+    workingHours: WorkingHours[];
+    dateOverrides: DateOverride[];
+    organizerTimeZone: string;
+    inviteeTimeZone: string;
+  }
+) => {
+  const timeSlotStart = dayjs(timeSlot.start).utc();
+  const timeSlotEnd = dayjs(timeSlot.end).utc();
+  const organizerDSTDiff =
+    dayjs().tz(organizerTimeZone).utcOffset() - timeSlotStart.tz(organizerTimeZone).utcOffset();
+  const getTime = (slotTime: Dayjs, minutes: number) =>
+    slotTime.startOf("day").add(minutes + organizerDSTDiff, "minutes");
+
+  for (const workingHour of workingHours) {
+    const startTime = getTime(timeSlotStart, workingHour.startTime);
+    // workingHours function logic set 1439 minutes when user select the end of the day (11:59) in his schedule
+    // so, we need to add a minute, to avoid, "No available user" error when the last available slot is selected.
+    const endTime = getTime(timeSlotEnd, workingHour.endTime === 1439 ? 1440 : workingHour.endTime);
+    if (
+      workingHour.days.includes(timeSlotStart.day()) &&
+      // UTC mode, should be performant.
+      timeSlotStart.isBetween(startTime, endTime, null, "[)") &&
+      timeSlotEnd.isBetween(startTime, endTime, null, "(]")
+    ) {
+      return true;
+    }
+  }
+
+  // check if it is a date override
+  for (const dateOverride of dateOverrides) {
+    const utcOffSet = dayjs(dateOverride.start).tz(inviteeTimeZone).utcOffset();
+
+    const slotStart = dayjs(timeSlotStart).add(utcOffSet, "minute");
+    const slotEnd = dayjs(timeSlotEnd).add(utcOffSet, "minute");
+
+    if (
+      slotStart.isBetween(dateOverride.start, dateOverride.end) &&
+      slotEnd.isBetween(dateOverride.start, dateOverride.end)
+    ) {
+      return true;
+    }
+  }
+
+  log.error(
+    `NAUF: isWithinAvailableHours ${JSON.stringify({ ...timeSlot, organizerTimeZone, workingHours })}`
+  );
+  return false;
 };
 
 // if true, there are conflicts.
