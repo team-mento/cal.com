@@ -763,9 +763,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
           },
           {
             name: "view_public_page",
-            href: !!user?.organizationId
-              ? publicPageUrl
-              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`,
+            href: publicPageUrl,
             icon: ExternalLink,
             target: "__blank",
           },
@@ -774,11 +772,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
             href: "",
             onClick: (e: { preventDefault: () => void }) => {
               e.preventDefault();
-              navigator.clipboard.writeText(
-                !!user?.organizationId
-                  ? publicPageUrl
-                  : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`
-              );
+              navigator.clipboard.writeText(publicPageUrl);
               showToast(t("link_copied"), "success");
             },
             icon: Copy,
