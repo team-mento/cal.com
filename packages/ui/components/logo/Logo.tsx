@@ -6,11 +6,13 @@ export default function Logo({
   icon,
   inline = true,
   className,
+  src = "/api/logo",
 }: {
   small?: boolean;
   icon?: boolean;
   inline?: boolean;
   className?: string;
+  src?: string;
 }) {
   return (
     <h3 className={classNames("logo", inline && "inline", className)}>
