@@ -19,6 +19,7 @@ import type { TrpcSessionUser } from "@calcom/trpc/server/trpc";
 
 import { TRPCError } from "@trpc/server";
 
+import { getDefaultScheduleId } from "../viewer/availability/util";
 import { updateUserMetadataAllowedKeys, type TUpdateProfileInputSchema } from "./updateProfile.schema";
 
 type UpdateProfileOptions = {
@@ -62,6 +63,9 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
   }
   if (input.avatar) {
     data.avatar = await resizeBase64Image(input.avatar);
+  }
+  if (input.avatar === null) {
+    data.avatar = null;
   }
 
   if (isPremiumUsername) {
@@ -133,6 +137,11 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
       bio: true,
       completedOnboarding: true,
       locale: true,
+      schedules: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -165,6 +174,31 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
     } catch (e) {
       console.error(e);
     }
+  }
+  if (user.timeZone !== data.timeZone && updatedUser.schedules.length > 0) {
+    // on timezone change update timezone of default schedule
+    const defaultScheduleId = await getDefaultScheduleId(user.id, prisma);
+
+    if (!user.defaultScheduleId) {
+      // set default schedule if not already set
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          defaultScheduleId,
+        },
+      });
+    }
+
+    await prisma.schedule.updateMany({
+      where: {
+        id: defaultScheduleId,
+      },
+      data: {
+        timeZone: data.timeZone,
+      },
+    });
   }
 
   if (hasEmailChangedOnNonCalProvider) {
