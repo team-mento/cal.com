@@ -334,6 +334,7 @@ const getEventTypesFromDB = async (eventTypeId: number) => {
       seatsPerTimeSlot: true,
       recurringEvent: true,
       seatsShowAttendees: true,
+      seatsShowAvailabilityCount: true,
       bookingLimits: true,
       durationLimits: true,
       parentId: true,
@@ -1154,6 +1155,7 @@ async function handler(
     // if seats are not enabled we should default true
     seatsShowAttendees: eventType.seatsPerTimeSlot ? eventType.seatsShowAttendees : true,
     seatsPerTimeSlot: eventType.seatsPerTimeSlot,
+    seatsShowAvailabilityCount: eventType.seatsPerTimeSlot ? eventType.seatsShowAvailabilityCount : true,
     schedulingType: eventType.schedulingType,
   };
 
@@ -1839,6 +1841,7 @@ async function handler(
     const webhookData = {
       ...evt,
       ...eventTypeInfo,
+      uid: resultBooking?.uid || uid,
       bookingId: booking?.id,
       rescheduleUid,
       rescheduleStartTime: originalRescheduledBooking?.startTime

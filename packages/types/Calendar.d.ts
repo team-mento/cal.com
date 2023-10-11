@@ -178,6 +178,7 @@ export interface CalendarEvent {
   eventTypeId?: number | null;
   appsStatus?: AppsStatus[];
   seatsShowAttendees?: boolean | null;
+  seatsShowAvailabilityCount?: boolean | null;
   attendeeSeatId?: string;
   seatsPerTimeSlot?: number | null;
   schedulingType?: SchedulingType | null;
@@ -214,7 +215,7 @@ export interface IntegrationCalendar extends Ensure<Partial<SelectedCalendar>, "
   // For displaying the connected email address
   email?: string;
   primaryEmail?: string;
-  credentialId?: number;
+  credentialId?: number | null;
   integrationTitle?: string;
 }
 
