@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports
 import { noop } from "lodash";
 import { useIntercom as useIntercomLib } from "react-use-intercom";
 import { z } from "zod";
@@ -43,7 +44,7 @@ export const useIntercom = () => {
       customAttributes: {
         //keys should be snake cased
         user_name: data?.username,
-        link: CAL_URL + "/" + data?.username,
+        link: `${CAL_URL}/${data?.username}`,
         identity_provider: data?.identityProvider,
         timezone: data?.timeZone,
         locale: data?.locale,

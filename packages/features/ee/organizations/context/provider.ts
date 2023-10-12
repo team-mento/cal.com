@@ -10,9 +10,16 @@ import type { teamMetadataSchema } from "@calcom/prisma/zod-utils";
  */
 export type OrganizationBranding =
   | ({
-      logo?: string | null | undefined;
+      /** 1 */
+      id: number;
+      /** Acme */
       name?: string;
-      slug?: string;
+      /** acme */
+      slug: string;
+      /** https://acme.cal.com */
+      fullDomain: string;
+      /** cal.com */
+      domainSuffix: string;
     } & z.infer<typeof teamMetadataSchema>)
   | null
   | undefined;
@@ -20,19 +27,19 @@ export type OrganizationBranding =
 /**
  * Allows you to access the flags from context
  */
-const OrganizationBrandingContext = createContext<OrganizationBranding | null>(null);
+const OrganizationBrandingContext = createContext<{ orgBrand: OrganizationBranding } | null>(null);
 
 /**
  * Accesses the branding for an organization from context.
- *
  * You need to render a <OrgBrandingProvider /> further up to be able to use
  * this component.
+ *
+ * @returns `undefined` when data isn't available yet, `null` when there's an error, and the data(which can be `null`) when it's available
  */
 export function useOrgBranding() {
   const orgBrandingContext = useContext(OrganizationBrandingContext);
-  if (orgBrandingContext === null)
-    throw new Error("Error: useOrganizationBranding was used outside of OrgBrandingProvider.");
-  return orgBrandingContext as OrganizationBranding;
+  if (!orgBrandingContext) throw new Error("Error: useOrgBranding was used outside of OrgBrandingProvider.");
+  return orgBrandingContext.orgBrand;
 }
 
 /**
@@ -58,7 +65,7 @@ export function useOrgBranding() {
  * `YourOwnComponent` or further down.
  *
  */
-export function OrgBrandingProvider<F extends OrganizationBranding>(props: {
+export function OrgBrandingProvider<F extends { orgBrand: OrganizationBranding }>(props: {
   value: F;
   children: React.ReactNode;
 }) {

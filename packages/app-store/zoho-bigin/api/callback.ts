@@ -4,11 +4,11 @@ import qs from "qs";
 
 import { WEBAPP_URL } from "@calcom/lib/constants";
 import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
-import prisma from "@calcom/prisma";
 
-import { decodeOAuthState } from "../../_utils/decodeOAuthState";
 import getAppKeysFromSlug from "../../_utils/getAppKeysFromSlug";
 import getInstalledAppPath from "../../_utils/getInstalledAppPath";
+import createOAuthAppCredential from "../../_utils/oauth/createOAuthAppCredential";
+import { decodeOAuthState } from "../../_utils/oauth/decodeOAuthState";
 import appConfig from "../config.json";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!clientSecret) return res.status(400).json({ message: "Zoho Bigin client_secret missing." });
 
   const accountsUrl = `${accountsServer}/oauth/v2/token`;
-  const redirectUri = WEBAPP_URL + `/api/integrations/${appConfig.slug}/callback`;
+  const redirectUri = `${WEBAPP_URL}/api/integrations/${appConfig.slug}/callback`;
 
   const formData = {
     client_id: clientId,
@@ -52,14 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   tokenInfo.data.expiryDate = Math.round(Date.now() + tokenInfo.data.expires_in);
   tokenInfo.data.accountServer = accountsServer;
 
-  await prisma.credential.create({
-    data: {
-      type: appConfig.type,
-      key: tokenInfo.data,
-      userId: req.session.user.id,
-      appId: appConfig.slug,
-    },
-  });
+  await createOAuthAppCredential({ appId: appConfig.slug, type: appConfig.type }, tokenInfo.data, req);
 
   const state = decodeOAuthState(req);
   res.redirect(

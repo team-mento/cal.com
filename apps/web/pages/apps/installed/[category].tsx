@@ -1,222 +1,38 @@
-import { useRouter } from "next/router";
-import { useCallback, useReducer, useState } from "react";
-import z from "zod";
+import { useSearchParams } from "next/navigation";
+import { useReducer } from "react";
+import { z } from "zod";
 
-import { AppSettings } from "@calcom/app-store/_components/AppSettings";
-import { InstallAppButton } from "@calcom/app-store/components";
-import type { EventLocationType } from "@calcom/app-store/locations";
-import { getEventLocationTypeFromApp } from "@calcom/app-store/locations";
-import { InstalledAppVariants } from "@calcom/app-store/utils";
-import { AppSetDefaultLinkDialog } from "@calcom/features/apps/components/AppSetDefaultLinkDialog";
 import DisconnectIntegrationModal from "@calcom/features/apps/components/DisconnectIntegrationModal";
-import { BulkEditDefaultConferencingModal } from "@calcom/features/eventtypes/components/BulkEditDefaultConferencingModal";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import type { RouterOutputs } from "@calcom/trpc/react";
+import { AppCategories } from "@calcom/prisma/enums";
 import { trpc } from "@calcom/trpc/react";
-import type { App } from "@calcom/types/App";
 import type { AppGetServerSidePropsContext } from "@calcom/types/AppGetServerSideProps";
-import {
-  Alert,
-  Button,
-  EmptyScreen,
-  List,
-  AppSkeletonLoader as SkeletonLoader,
-  ShellSubHeading,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  Dropdown,
-  DropdownMenuItem,
-  DropdownItem,
-  showToast,
-} from "@calcom/ui";
+import { Button, EmptyScreen, AppSkeletonLoader as SkeletonLoader, ShellSubHeading } from "@calcom/ui";
+import type { LucideIcon } from "@calcom/ui/components/icon";
 import {
   BarChart,
   Calendar,
+  Contact,
   CreditCard,
   Grid,
-  MoreHorizontal,
+  Mail,
   Plus,
   Share2,
-  Trash,
   Video,
 } from "@calcom/ui/components/icon";
 
 import { QueryCell } from "@lib/QueryCell";
 
-import AppListCard from "@components/AppListCard";
 import PageWrapper from "@components/PageWrapper";
+import { AppList } from "@components/apps/AppList";
 import { CalendarListContainer } from "@components/apps/CalendarListContainer";
 import InstalledAppsLayout from "@components/apps/layouts/InstalledAppsLayout";
 
-function ConnectOrDisconnectIntegrationMenuItem(props: {
-  credentialIds: number[];
-  type: App["type"];
-  isGlobal?: boolean;
-  installed?: boolean;
-  invalidCredentialIds?: number[];
-  handleDisconnect: (credentialId: number) => void;
-}) {
-  const { type, credentialIds, isGlobal, installed, handleDisconnect } = props;
-  const { t } = useLocale();
-  const [credentialId] = credentialIds;
-
-  const utils = trpc.useContext();
-  const handleOpenChange = () => {
-    utils.viewer.integrations.invalidate();
-  };
-
-  if (credentialId || type === "stripe_payment" || isGlobal) {
-    return (
-      <DropdownMenuItem>
-        <DropdownItem
-          color="destructive"
-          onClick={() => handleDisconnect(credentialId)}
-          disabled={isGlobal}
-          StartIcon={Trash}>
-          {t("remove_app")}
-        </DropdownItem>
-      </DropdownMenuItem>
-    );
-  }
-
-  if (!installed) {
-    return (
-      <div className="flex items-center truncate">
-        <Alert severity="warning" title={t("not_installed")} />
-      </div>
-    );
-  }
-
-  return (
-    <InstallAppButton
-      type={type}
-      render={(buttonProps) => (
-        <Button color="secondary" {...buttonProps} data-testid="integration-connection-button">
-          {t("install")}
-        </Button>
-      )}
-      onChanged={handleOpenChange}
-    />
-  );
-}
-
 interface IntegrationsContainerProps {
-  variant?: (typeof InstalledAppVariants)[number];
-  exclude?: (typeof InstalledAppVariants)[number][];
+  variant?: AppCategories;
+  exclude?: AppCategories[];
   handleDisconnect: (credentialId: number) => void;
 }
-
-interface IntegrationsListProps {
-  variant?: IntegrationsContainerProps["variant"];
-  data: RouterOutputs["viewer"]["integrations"];
-  handleDisconnect: (credentialId: number) => void;
-}
-
-const IntegrationsList = ({ data, handleDisconnect, variant }: IntegrationsListProps) => {
-  const { data: defaultConferencingApp } = trpc.viewer.getUsersDefaultConferencingApp.useQuery();
-  const utils = trpc.useContext();
-  const [bulkUpdateModal, setBulkUpdateModal] = useState(false);
-  const [locationType, setLocationType] = useState<(EventLocationType & { slug: string }) | undefined>(
-    undefined
-  );
-
-  const onSuccessCallback = useCallback(() => {
-    setBulkUpdateModal(true);
-    showToast("Default app updated successfully", "success");
-  }, []);
-
-  const updateDefaultAppMutation = trpc.viewer.updateUserDefaultConferencingApp.useMutation({
-    onSuccess: () => {
-      showToast("Default app updated successfully", "success");
-      utils.viewer.getUsersDefaultConferencingApp.invalidate();
-    },
-    onError: (error) => {
-      showToast(`Error: ${error.message}`, "error");
-    },
-  });
-
-  const { t } = useLocale();
-  return (
-    <>
-      <List>
-        {data.items
-          .filter((item) => item.invalidCredentialIds)
-          .map((item) => {
-            const appSlug = item?.slug;
-            const appIsDefault =
-              appSlug === defaultConferencingApp?.appSlug ||
-              (appSlug === "daily-video" && !defaultConferencingApp?.appSlug);
-            return (
-              <AppListCard
-                key={item.name}
-                description={item.description}
-                title={item.name}
-                logo={item.logo}
-                isDefault={appIsDefault}
-                shouldHighlight
-                slug={item.slug}
-                invalidCredential={item.invalidCredentialIds.length > 0}
-                actions={
-                  <div className="flex  justify-end">
-                    <Dropdown modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button StartIcon={MoreHorizontal} variant="icon" color="secondary" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {!appIsDefault && variant === "conferencing" && (
-                          <DropdownMenuItem>
-                            <DropdownItem
-                              type="button"
-                              color="secondary"
-                              StartIcon={Video}
-                              onClick={() => {
-                                const locationType = getEventLocationTypeFromApp(
-                                  item?.locationOption?.value ?? ""
-                                );
-                                if (locationType?.linkType === "static") {
-                                  setLocationType({ ...locationType, slug: appSlug });
-                                } else {
-                                  updateDefaultAppMutation.mutate({
-                                    appSlug,
-                                  });
-                                  setBulkUpdateModal(true);
-                                }
-                              }}>
-                              {t("set_as_default")}
-                            </DropdownItem>
-                          </DropdownMenuItem>
-                        )}
-                        <ConnectOrDisconnectIntegrationMenuItem
-                          credentialIds={item.credentialIds}
-                          type={item.type}
-                          isGlobal={item.isGlobal}
-                          installed
-                          invalidCredentialIds={item.invalidCredentialIds}
-                          handleDisconnect={handleDisconnect}
-                        />
-                      </DropdownMenuContent>
-                    </Dropdown>
-                  </div>
-                }>
-                <AppSettings slug={item.slug} />
-              </AppListCard>
-            );
-          })}
-      </List>
-      {locationType && (
-        <AppSetDefaultLinkDialog
-          locationType={locationType}
-          setLocationType={() => setLocationType(undefined)}
-          onSuccess={onSuccessCallback}
-        />
-      )}
-
-      {bulkUpdateModal && (
-        <BulkEditDefaultConferencingModal open={bulkUpdateModal} setOpen={setBulkUpdateModal} />
-      )}
-    </>
-  );
-};
 
 const IntegrationsContainer = ({
   variant,
@@ -224,15 +40,25 @@ const IntegrationsContainer = ({
   handleDisconnect,
 }: IntegrationsContainerProps): JSX.Element => {
   const { t } = useLocale();
-  const query = trpc.viewer.integrations.useQuery({ variant, exclude, onlyInstalled: true });
-  const emptyIcon = {
+  const query = trpc.viewer.integrations.useQuery({
+    variant,
+    exclude,
+    onlyInstalled: true,
+    includeTeamInstalledApps: true,
+  });
+
+  // TODO: Refactor and reuse getAppCategories?
+  const emptyIcon: Record<AppCategories, LucideIcon> = {
     calendar: Calendar,
     conferencing: Video,
     automation: Share2,
     analytics: BarChart,
     payment: CreditCard,
-    web3: BarChart,
+    web3: BarChart, // deprecated
     other: Grid,
+    video: Video, // deprecated
+    messaging: Mail,
+    crm: Contact,
   };
 
   return (
@@ -267,16 +93,15 @@ const IntegrationsContainer = ({
               className="mb-6"
               actions={
                 <Button
-                  href={
-                    variant ? `/apps/categories/${variant === "conferencing" ? "video" : variant}` : "/apps"
-                  }
+                  href={variant ? `/apps/categories/${variant}` : "/apps"}
                   color="secondary"
                   StartIcon={Plus}>
                   {t("add")}
                 </Button>
               }
             />
-            <IntegrationsList handleDisconnect={handleDisconnect} data={data} variant={variant} />
+
+            <AppList handleDisconnect={handleDisconnect} data={data} variant={variant} />
           </div>
         );
       }}
@@ -285,7 +110,7 @@ const IntegrationsContainer = ({
 };
 
 const querySchema = z.object({
-  category: z.enum(InstalledAppVariants),
+  category: z.nativeEnum(AppCategories),
 });
 
 type querySchemaType = z.infer<typeof querySchema>;
@@ -293,19 +118,17 @@ type querySchemaType = z.infer<typeof querySchema>;
 type ModalState = {
   isOpen: boolean;
   credentialId: null | number;
+  teamId?: number;
 };
 
 export default function InstalledApps() {
+  const searchParams = useSearchParams();
   const { t } = useLocale();
-  const router = useRouter();
-  const category = router.query.category as querySchemaType["category"];
-  const categoryList: querySchemaType["category"][] = [
-    "payment",
-    "conferencing",
-    "automation",
-    "analytics",
-    "web3",
-  ];
+  const category = searchParams?.get("category") as querySchemaType["category"];
+  const categoryList: AppCategories[] = Object.values(AppCategories).filter((category) => {
+    // Exclude calendar and other from categoryList, we handle those slightly differently below
+    return !(category in { other: null, calendar: null });
+  });
 
   const [data, updateData] = useReducer(
     (data: ModalState, partialData: Partial<ModalState>) => ({ ...data, ...partialData }),
@@ -319,8 +142,8 @@ export default function InstalledApps() {
     updateData({ isOpen: false, credentialId: null });
   };
 
-  const handleDisconnect = (credentialId: number) => {
-    updateData({ isOpen: true, credentialId });
+  const handleDisconnect = (credentialId: number, teamId?: number) => {
+    updateData({ isOpen: true, credentialId, teamId });
   };
 
   return (
@@ -342,6 +165,7 @@ export default function InstalledApps() {
         handleModelClose={handleModelClose}
         isOpen={data.isOpen}
         credentialId={data.credentialId}
+        teamId={data.teamId}
       />
     </>
   );

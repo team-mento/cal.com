@@ -18,7 +18,10 @@ export const BookingStatusLineChart = () => {
     selectedTimeView = "week",
     dateRange,
     selectedEventTypeId,
+    isAll,
+    initialConfig,
   } = filter;
+  const initialConfigIsReady = !!(initialConfig?.teamId || initialConfig?.userId || initialConfig?.isAll);
   const [startDate, endDate] = dateRange;
 
   if (!startDate || !endDate) return null;
@@ -35,12 +38,14 @@ export const BookingStatusLineChart = () => {
       teamId: selectedTeamId ?? undefined,
       eventTypeId: selectedEventTypeId ?? undefined,
       userId: selectedUserId ?? undefined,
+      isAll,
     },
     {
       staleTime: 30000,
       trpc: {
         context: { skipBatch: true },
       },
+      enabled: initialConfigIsReady,
     }
   );
 

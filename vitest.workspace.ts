@@ -17,6 +17,7 @@ const workspaces = packagedEmbedTestsOnly
           include: ["packages/**/*.{test,spec}.{ts,js}", "apps/**/*.{test,spec}.{ts,js}"],
           // TODO: Ignore the api until tests are fixed
           exclude: ["apps/api/**/*", "**/node_modules/**/*", "packages/embeds/**/*"],
+          setupFiles: ["setupVitest.ts"],
         },
       },
       {
@@ -25,6 +26,24 @@ const workspaces = packagedEmbedTestsOnly
           include: ["packages/app-store/closecom/**/*.{test,spec}.{ts,js}"],
           environment: "jsdom",
           setupFiles: ["packages/app-store/closecom/test/globals.ts"],
+        },
+      },
+      {
+        test: {
+          globals: true,
+          name: "ui/components",
+          include: ["packages/ui/components/**/*.{test,spec}.{ts,js,tsx}"],
+          environment: "jsdom",
+          setupFiles: ["packages/ui/components/test-setup.ts"],
+        },
+      },
+      {
+        test: {
+          globals: true,
+          name: "EventTypeAppCardInterface components",
+          include: ["packages/app-store/_components/**/*.{test,spec}.{ts,js,tsx}"],
+          environment: "jsdom",
+          setupFiles: ["packages/app-store/test-setup.ts"],
         },
       },
     ];

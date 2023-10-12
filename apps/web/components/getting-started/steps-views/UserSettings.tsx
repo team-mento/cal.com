@@ -1,9 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import dayjs from "@calcom/dayjs";
+import { useTimePreferences } from "@calcom/features/bookings/lib";
 import { FULL_NAME_LENGTH_MAX_LIMIT } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
@@ -15,13 +16,14 @@ import { UsernameAvailabilityField } from "@components/ui/UsernameAvailability";
 
 interface IUserSettingsProps {
   nextStep: () => void;
+  hideUsername?: boolean;
 }
 
 const UserSettings = (props: IUserSettingsProps) => {
   const { nextStep } = props;
   const [user] = trpc.viewer.me.useSuspenseQuery();
   const { t } = useLocale();
-  const [selectedTimeZone, setSelectedTimeZone] = useState(dayjs.tz.guess());
+  const { setTimezone: setSelectedTimeZone, timezone: selectedTimeZone } = useTimePreferences();
   const telemetry = useTelemetry();
   const userSettingsSchema = z.object({
     name: z
@@ -66,8 +68,8 @@ const UserSettings = (props: IUserSettingsProps) => {
   return (
     <form onSubmit={onSubmit}>
       <div className="space-y-6">
-        {/* Username textfield */}
-        <UsernameAvailabilityField />
+        {/* Username textfield: when not coming from signup */}
+        {!props.hideUsername && <UsernameAvailabilityField />}
 
         {/* Full name textfield */}
         <div className="w-full">

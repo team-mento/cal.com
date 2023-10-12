@@ -10,7 +10,7 @@ import { LoadingInsight } from "./LoadingInsights";
 export const PopularEventsTable = () => {
   const { t } = useLocale();
   const { filter } = useFilterContext();
-  const { dateRange, selectedMemberUserId, selectedUserId } = filter;
+  const { dateRange, selectedMemberUserId, selectedUserId, isAll, initialConfig } = filter;
   const [startDate, endDate] = dateRange;
   const { selectedTeamId: teamId } = filter;
 
@@ -21,12 +21,14 @@ export const PopularEventsTable = () => {
       teamId: teamId ?? undefined,
       userId: selectedUserId ?? undefined,
       memberUserId: selectedMemberUserId ?? undefined,
+      isAll,
     },
     {
       staleTime: 30000,
       trpc: {
         context: { skipBatch: true },
       },
+      enabled: !!(initialConfig?.teamId || initialConfig?.userId || initialConfig?.isAll),
     }
   );
 

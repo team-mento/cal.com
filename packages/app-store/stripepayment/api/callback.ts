@@ -2,9 +2,8 @@ import type { Prisma } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { stringify } from "querystring";
 
-import prisma from "@calcom/prisma";
-
 import getInstalledAppPath from "../../_utils/getInstalledAppPath";
+import createOAuthAppCredential from "../../_utils/oauth/createOAuthAppCredential";
 import type { StripeData } from "../lib/server";
 import stripe from "../lib/server";
 
@@ -23,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (error) {
     const query = stringify({ error, error_description });
-    res.redirect("/apps/installed?" + query);
+    res.redirect(`/apps/installed?${query}`);
     return;
   }
 
@@ -42,14 +41,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     data["default_currency"] = account.default_currency;
   }
 
-  await prisma.credential.create({
-    data: {
-      type: "stripe_payment",
-      key: data as unknown as Prisma.InputJsonObject,
-      userId: req.session.user.id,
-      appId: "stripe",
-    },
-  });
+  await createOAuthAppCredential(
+    { appId: "stripe", type: "stripe_payment" },
+    data as unknown as Prisma.InputJsonObject,
+    req
+  );
 
   const returnTo = getReturnToValueFromQueryState(req);
   res.redirect(returnTo || getInstalledAppPath({ variant: "payment", slug: "stripe" }));

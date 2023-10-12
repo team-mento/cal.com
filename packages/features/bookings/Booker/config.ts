@@ -57,7 +57,7 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
           "timeslots"
         `,
       gridTemplateColumns: "100%",
-      gridTemplateRows: "auto auto auto auto",
+      gridTemplateRows: "minmax(min-content,max-content) 1fr",
     },
   },
   month_view: {
@@ -224,7 +224,7 @@ export const extraDaysConfig = {
     tablet: 4,
   },
   [BookerLayouts.COLUMN_VIEW]: {
-    desktop: 4,
+    desktop: 6,
     tablet: 2,
   },
 };

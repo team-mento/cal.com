@@ -1,7 +1,7 @@
 import type { TFunction } from "next-i18next";
 import { z } from "zod";
 
-import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
+import { appStoreMetadata } from "@calcom/app-store/bookerAppsMetaData";
 import logger from "@calcom/lib/logger";
 import { BookingStatus } from "@calcom/prisma/enums";
 import type { Ensure, Optional } from "@calcom/types/utils";
@@ -42,7 +42,10 @@ export type DefaultEventLocationType = {
     }
 );
 
-type EventLocationTypeFromApp = Ensure<EventLocationTypeFromAppMeta, "defaultValueVariable" | "variable">;
+export type EventLocationTypeFromApp = Ensure<
+  EventLocationTypeFromAppMeta,
+  "defaultValueVariable" | "variable"
+>;
 
 export type EventLocationType = DefaultEventLocationType | EventLocationTypeFromApp;
 
@@ -88,7 +91,7 @@ export const defaultLocations: DefaultEventLocationType[] = [
     attendeeInputType: "attendeeAddress",
     attendeeInputPlaceholder: "enter_address",
     defaultValueVariable: "attendeeAddress",
-    iconUrl: "/map-pin.svg",
+    iconUrl: "/map-pin-dark.svg",
     category: "in person",
   },
   {
@@ -100,7 +103,7 @@ export const defaultLocations: DefaultEventLocationType[] = [
     // HACK:
     variable: "locationAddress",
     defaultValueVariable: "address",
-    iconUrl: "/map-pin.svg",
+    iconUrl: "/map-pin-dark.svg",
     category: "in person",
   },
   {
@@ -165,6 +168,7 @@ export type LocationObject = {
   type: string;
   address?: string;
   displayLocationPublicly?: boolean;
+  credentialId?: number;
 } & Partial<
   Record<"address" | "attendeeAddress" | "link" | "hostPhoneNumber" | "hostDefault" | "phone", string>
 >;
@@ -299,13 +303,13 @@ export const getHumanReadableLocationValue = (
 
   // Just in case linkValue is a `locationType.type`(for old bookings)
   const eventLocationType = getEventLocationType(linkValue);
-
+  const isDefault = eventLocationType?.default;
   if (eventLocationType) {
     // If we can find a video location based on linkValue then it means that the linkValue is something like integrations:google-meet and in that case we don't have the meeting URL to show.
     // Show a generic message in that case.
-    return `${eventLocationType.label}`;
+    return isDefault ? translationFunction(eventLocationType.label) : `${eventLocationType.label}`;
   }
-  // Otherwise just show the available link value which can be a Phone number, a URL or a physical address of a place.
+  // Otherwise just show the available link value.
   return linkValue || "";
 };
 
@@ -340,9 +344,11 @@ export const getLocationValueForDB = (
   eventLocations: LocationObject[]
 ) => {
   let bookingLocation = bookingLocationTypeOrValue;
+  let conferenceCredentialId = undefined;
   eventLocations.forEach((location) => {
     if (location.type === bookingLocationTypeOrValue) {
       const eventLocationType = getEventLocationType(bookingLocationTypeOrValue);
+      conferenceCredentialId = location.credentialId;
       if (!eventLocationType) {
         return;
       }
@@ -355,7 +361,7 @@ export const getLocationValueForDB = (
       bookingLocation = location[eventLocationType.defaultValueVariable] || bookingLocation;
     }
   });
-  return bookingLocation;
+  return { bookingLocation, conferenceCredentialId };
 };
 
 export const getEventLocationValue = (eventLocations: LocationObject[], bookingLocation: LocationObject) => {
@@ -396,8 +402,9 @@ export function getSuccessPageLocationMessage(
     if (bookingStatus === BookingStatus.CANCELLED || bookingStatus === BookingStatus.REJECTED) {
       locationToDisplay == t("web_conference");
     } else if (isConfirmed) {
-      locationToDisplay =
-        getHumanReadableLocationValue(location, t) + ": " + t("meeting_url_in_conformation_email");
+      locationToDisplay = `${getHumanReadableLocationValue(location, t)}: ${t(
+        "meeting_url_in_confirmation_email"
+      )}`;
     } else {
       locationToDisplay = t("web_conferencing_details_to_follow");
     }

@@ -4,7 +4,7 @@ import { createEvent } from "ics";
 import type { GetServerSidePropsContext } from "next";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { RRule } from "rrule";
 import { z } from "zod";
@@ -23,12 +23,10 @@ import {
   useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
+import { Price } from "@calcom/features/bookings/components/event-meta/Price";
+import { SMS_REMINDER_NUMBER_FIELD, SystemField } from "@calcom/features/bookings/lib/SystemField";
 import { getBookingWithResponses } from "@calcom/features/bookings/lib/get-booking";
-import {
-  SystemField,
-  getBookingFieldsWithSystemFields,
-  SMS_REMINDER_NUMBER_FIELD,
-} from "@calcom/features/bookings/lib/getBookingFields";
+import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/getBookingFields";
 import { parseRecurringEvent } from "@calcom/lib";
 import {
   formatToLocalizedDate,
@@ -38,6 +36,7 @@ import {
 import { getDefaultEvent } from "@calcom/lib/defaultEvents";
 import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import { useRouterQuery } from "@calcom/lib/hooks/useRouterQuery";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import { maybeGetBookingUidFromSeat } from "@calcom/lib/server/maybeGetBookingUidFromSeat";
@@ -46,11 +45,9 @@ import { localStorage } from "@calcom/lib/webstorage";
 import prisma from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import { BookingStatus } from "@calcom/prisma/enums";
-import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
-import { customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import { HeadSeo, Badge, useCalcomTheme, Alert } from "@calcom/ui";
-import { X, ExternalLink, ChevronLeft, Check, Calendar } from "@calcom/ui/components/icon";
-import { AlertCircle } from "@calcom/ui/components/icon";
+import { bookingMetadataSchema, customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
+import { Alert, Badge, HeadSeo, useCalcomTheme } from "@calcom/ui";
+import { AlertCircle, Calendar, Check, ChevronLeft, ExternalLink, X } from "@calcom/ui/components/icon";
 
 import { timeZone } from "@lib/clock";
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -98,6 +95,9 @@ const querySchema = z.object({
 export default function Success(props: SuccessProps) {
   const { t } = useLocale();
   const router = useRouter();
+  const routerQuery = useRouterQuery();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     allRemainingBookings,
     isSuccessBookingPage,
@@ -105,12 +105,13 @@ export default function Success(props: SuccessProps) {
     formerTime,
     email,
     seatReferenceUid,
-  } = querySchema.parse(router.query);
+  } = querySchema.parse(routerQuery);
 
   const attendeeTimeZone = props?.bookingInfo?.attendees.find(
     (attendee) => attendee.email === email
   )?.timeZone;
-  const tz = isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : props.tz ? props.tz : timeZone();
+
+  const tz = props.tz ? props.tz : isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : timeZone();
 
   const location = props.bookingInfo.location as ReturnType<typeof getEventLocationValue>;
 
@@ -131,7 +132,9 @@ export default function Success(props: SuccessProps) {
 
   const isGmail = !!attendees.find((attendee) => attendee.email.includes("gmail.com"));
 
-  const [is24h, setIs24h] = useState(isBrowserLocale24h());
+  const [is24h, setIs24h] = useState(
+    props?.userTimeFormat ? props.userTimeFormat === 24 : isBrowserLocale24h()
+  );
   const { data: session } = useSession();
 
   const [date, setDate] = useState(dayjs.utc(props.bookingInfo.startTime));
@@ -144,30 +147,27 @@ export default function Success(props: SuccessProps) {
   const [calculatedDuration, setCalculatedDuration] = useState<number | undefined>(undefined);
 
   function setIsCancellationMode(value: boolean) {
-    const query_ = { ...router.query };
+    const _searchParams = new URLSearchParams(searchParams);
 
     if (value) {
-      query_.cancel = "true";
+      _searchParams.set("cancel", "true");
     } else {
-      if (query_.cancel) {
-        delete query_.cancel;
+      if (_searchParams.get("cancel")) {
+        _searchParams.delete("cancel");
       }
     }
 
-    router.replace(
-      {
-        pathname: router.pathname,
-        query: { ...query_ },
-      },
-      undefined,
-      { scroll: false }
-    );
+    router.replace(`${pathname}?${_searchParams.toString()}`);
   }
 
+  let evtName = props.eventType.eventName;
+  if (eventType.isDynamic && bookingInfo.responses?.title) {
+    evtName = bookingInfo.responses.title as string;
+  }
   const eventNameObject = {
     attendeeName,
     eventType: props.eventType.title,
-    eventName: (props.dynamicEventName as string) || props.eventType.eventName,
+    eventName: evtName,
     host: props.profile.name || "Nameless",
     location: location,
     bookingFields: bookingInfo.responses,
@@ -184,7 +184,7 @@ export default function Success(props: SuccessProps) {
   // - It's a paid event and payment is pending.
   const needsConfirmation = bookingInfo.status === BookingStatus.PENDING && eventType.requiresConfirmation;
   const userIsOwner = !!(session?.user?.id && eventType.owner?.id === session.user.id);
-
+  const isLoggedIn = session?.user;
   const isCancelled =
     status === "CANCELLED" ||
     status === "REJECTED" ||
@@ -216,8 +216,10 @@ export default function Success(props: SuccessProps) {
       confirmed: !needsConfirmation,
       // TODO: Add payment details
     });
-    setDate(date.tz(localStorage.getItem("timeOption.preferredTimeZone") || dayjs.tz.guess()));
-    setIs24h(!!getIs24hClockFromLocalStorage());
+    setDate(
+      date.tz(localStorage.getItem("timeOption.preferredTimeZone") || dayjs.tz.guess() || "Europe/London")
+    );
+    setIs24h(props?.userTimeFormat ? props.userTimeFormat === 24 : !!getIs24hClockFromLocalStorage());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventType, needsConfirmation]);
 
@@ -266,18 +268,18 @@ export default function Success(props: SuccessProps) {
     }
     if (needsConfirmation) {
       if (props.profile.name !== null) {
-        return t("user_needs_to_confirm_or_reject_booking" + titleSuffix, {
+        return t(`user_needs_to_confirm_or_reject_booking${titleSuffix}`, {
           user: props.profile.name,
         });
       }
-      return t("needs_to_be_confirmed_or_rejected" + titleSuffix);
+      return t(`needs_to_be_confirmed_or_rejected${titleSuffix}`);
     }
-    return t("emailed_you_and_attendees" + titleSuffix);
+    return t(`emailed_you_and_attendees${titleSuffix}`);
   }
 
   // This is a weird case where the same route can be opened in booking flow as a success page or as a booking detail page from the app
   // As Booking Page it has to support configured theme, but as booking detail page it should not do any change. Let Shell.tsx handle it.
-  useTheme(isSuccessBookingPage ? props.profile.theme : undefined);
+  useTheme(isSuccessBookingPage ? props.profile.theme : "system");
   useBrandColors({
     brandColor: props.profile.brandColor,
     darkBrandColor: props.profile.darkBrandColor,
@@ -309,12 +311,12 @@ export default function Success(props: SuccessProps) {
           status={status}
         />
       )}
-      {userIsOwner && !isEmbed && (
+      {isLoggedIn && !isEmbed && (
         <div className="-mb-4 ml-4 mt-2">
           <Link
             href={allRemainingBookings ? "/bookings/recurring" : "/bookings/upcoming"}
             className="hover:bg-subtle text-subtle hover:text-default mt-2 inline-flex px-1 py-2 text-sm dark:hover:bg-transparent">
-            <ChevronLeft className="h-5 w-5" /> {t("back_to_bookings")}
+            <ChevronLeft className="h-5 w-5 rtl:rotate-180" /> {t("back_to_bookings")}
           </Link>
         </div>
       )}
@@ -355,10 +357,10 @@ export default function Success(props: SuccessProps) {
                     <img src={giphyImage} alt="Gif from Giphy" />
                   )}
                   {!giphyImage && !needsConfirmation && !isCancelled && (
-                    <Check className="h-5 w-5 text-green-600" />
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
                   )}
                   {needsConfirmation && !isCancelled && <Calendar className="text-emphasis h-5 w-5" />}
-                  {isCancelled && <X className="h-5 w-5 text-red-600" />}
+                  {isCancelled && <X className="h-5 w-5 text-red-600 dark:text-red-200" />}
                 </div>
                 <div className="mb-8 mt-6 text-center last:mb-0">
                   <h3
@@ -394,7 +396,7 @@ export default function Success(props: SuccessProps) {
                       </h4>
                     )}
 
-                  <div className="border-subtle text-default mt-8 grid grid-cols-3 border-t pt-8 text-left">
+                  <div className="border-subtle text-default mt-8 grid grid-cols-3 border-t pt-8 text-left rtl:text-right">
                     {(isCancelled || reschedule) && cancellationReason && (
                       <>
                         <div className="font-medium">
@@ -404,7 +406,9 @@ export default function Success(props: SuccessProps) {
                       </>
                     )}
                     <div className="font-medium">{t("what")}</div>
-                    <div className="col-span-2 mb-6 last:mb-0">{eventName}</div>
+                    <div className="col-span-2 mb-6 last:mb-0" data-testid="booking-title">
+                      {eventName}
+                    </div>
                     <div className="font-medium">{t("when")}</div>
                     <div className="col-span-2 mb-6 last:mb-0">
                       {reschedule && !!formerTime && (
@@ -439,7 +443,9 @@ export default function Success(props: SuccessProps) {
                           {bookingInfo?.user && (
                             <div className="mb-3">
                               <div>
-                                <span className="mr-2">{bookingInfo.user.name}</span>
+                                <span data-testid="booking-host-name" className="mr-2">
+                                  {bookingInfo.user.name}
+                                </span>
                                 <Badge variant="blue">{t("Host")}</Badge>
                               </div>
                               <p className="text-default">{bookingInfo.user.email}</p>
@@ -459,7 +465,7 @@ export default function Success(props: SuccessProps) {
                     {locationToDisplay && !isCancelled && (
                       <>
                         <div className="mt-3 font-medium">{t("where")}</div>
-                        <div className="col-span-2 mt-3">
+                        <div className="col-span-2 mt-3" data-testid="where">
                           {locationToDisplay.startsWith("http") ? (
                             <a
                               href={locationToDisplay}
@@ -473,6 +479,18 @@ export default function Success(props: SuccessProps) {
                           ) : (
                             locationToDisplay
                           )}
+                        </div>
+                      </>
+                    )}
+                    {props.paymentStatus && (
+                      <>
+                        <div className="mt-3 font-medium">
+                          {props.paymentStatus.paymentOption === "HOLD"
+                            ? t("complete_your_booking")
+                            : t("payment")}
+                        </div>
+                        <div className="col-span-2 mb-2 mt-3">
+                          <Price currency={props.paymentStatus.currency} price={props.paymentStatus.amount} />
                         </div>
                       </>
                     )}
@@ -573,23 +591,24 @@ export default function Success(props: SuccessProps) {
                         </span>
                         <div className="justify-left mt-1 flex text-left sm:mt-0">
                           <Link
-                            href={
-                              `https://calendar.google.com/calendar/r/eventedit?dates=${date
-                                .utc()
-                                .format("YYYYMMDDTHHmmss[Z]")}/${date
-                                .add(calculatedDuration, "minute")
-                                .utc()
-                                .format("YYYYMMDDTHHmmss[Z]")}&text=${eventName}&details=${
-                                props.eventType.description
-                              }` +
-                              (typeof locationVideoCallUrl === "string"
-                                ? "&location=" + encodeURIComponent(locationVideoCallUrl)
-                                : "") +
-                              (props.eventType.recurringEvent
-                                ? "&recur=" +
-                                  encodeURIComponent(new RRule(props.eventType.recurringEvent).toString())
-                                : "")
-                            }
+                            href={`https://calendar.google.com/calendar/r/eventedit?dates=${date
+                              .utc()
+                              .format("YYYYMMDDTHHmmss[Z]")}/${date
+                              .add(calculatedDuration, "minute")
+                              .utc()
+                              .format("YYYYMMDDTHHmmss[Z]")}&text=${eventName}&details=${
+                              props.eventType.description
+                            }${
+                              typeof locationVideoCallUrl === "string"
+                                ? `&location=${encodeURIComponent(locationVideoCallUrl)}`
+                                : ""
+                            }${
+                              props.eventType.recurringEvent
+                                ? `&recur=${encodeURIComponent(
+                                    new RRule(props.eventType.recurringEvent).toString()
+                                  )}`
+                                : ""
+                            }`}
                             className="text-default border-subtle h-10 w-10 rounded-sm border px-3 py-2 ltr:mr-2 rtl:ml-2">
                             <svg
                               className="-mt-1.5 inline-block h-4 w-4"
@@ -603,17 +622,17 @@ export default function Success(props: SuccessProps) {
                           <Link
                             href={
                               encodeURI(
-                                "https://outlook.live.com/calendar/0/deeplink/compose?body=" +
-                                  props.eventType.description +
-                                  "&enddt=" +
-                                  date.add(calculatedDuration, "minute").utc().format() +
-                                  "&path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&startdt=" +
-                                  date.utc().format() +
-                                  "&subject=" +
-                                  eventName
+                                `https://outlook.live.com/calendar/0/deeplink/compose?body=${
+                                  props.eventType.description
+                                }&enddt=${date
+                                  .add(calculatedDuration, "minute")
+                                  .utc()
+                                  .format()}&path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&startdt=${date
+                                  .utc()
+                                  .format()}&subject=${eventName}`
                               ) +
                               (locationVideoCallUrl
-                                ? "&location=" + encodeURIComponent(locationVideoCallUrl)
+                                ? `&location=${encodeURIComponent(locationVideoCallUrl)}`
                                 : "")
                             }
                             className="border-subtle text-default mx-2 h-10 w-10 rounded-sm border px-3 py-2"
@@ -630,17 +649,17 @@ export default function Success(props: SuccessProps) {
                           <Link
                             href={
                               encodeURI(
-                                "https://outlook.office.com/calendar/0/deeplink/compose?body=" +
-                                  props.eventType.description +
-                                  "&enddt=" +
-                                  date.add(calculatedDuration, "minute").utc().format() +
-                                  "&path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&startdt=" +
-                                  date.utc().format() +
-                                  "&subject=" +
-                                  eventName
+                                `https://outlook.office.com/calendar/0/deeplink/compose?body=${
+                                  props.eventType.description
+                                }&enddt=${date
+                                  .add(calculatedDuration, "minute")
+                                  .utc()
+                                  .format()}&path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&startdt=${date
+                                  .utc()
+                                  .format()}&subject=${eventName}`
                               ) +
                               (locationVideoCallUrl
-                                ? "&location=" + encodeURIComponent(locationVideoCallUrl)
+                                ? `&location=${encodeURIComponent(locationVideoCallUrl)}`
                                 : "")
                             }
                             className="text-default border-subtle mx-2 h-10 w-10 rounded-sm border px-3 py-2"
@@ -655,9 +674,9 @@ export default function Success(props: SuccessProps) {
                             </svg>
                           </Link>
                           <Link
-                            href={"data:text/calendar," + eventLink()}
+                            href={`data:text/calendar,${eventLink()}`}
                             className="border-subtle text-default mx-2 h-10 w-10 rounded-sm border px-3 py-2"
-                            download={props.eventType.title + ".ics"}>
+                            download={`${props.eventType.title}.ics`}>
                             <svg
                               version="1.1"
                               fill="currentColor"
@@ -711,7 +730,7 @@ export default function Success(props: SuccessProps) {
               </div>
               {isGmail && (
                 <Alert
-                  className="main -mb-20 mt-4 inline-block text-left sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
+                  className="main -mb-20 mt-4 inline-block ltr:text-left rtl:text-right sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
                   severity="warning"
                   message={
                     <div>
@@ -900,6 +919,7 @@ const getEventTypesFromDB = async (id: number) => {
       metadata: true,
       seatsPerTimeSlot: true,
       seatsShowAttendees: true,
+      seatsShowAvailabilityCount: true,
       periodStartDate: true,
       periodEndDate: true,
     },
@@ -923,6 +943,7 @@ const handleSeatsEventTypeOnBooking = async (
   eventType: {
     seatsPerTimeSlot?: number | null;
     seatsShowAttendees: boolean | null;
+    seatsShowAvailabilityCount: boolean | null;
     [x: string | number | symbol]: unknown;
   },
   bookingInfo: Partial<
@@ -987,10 +1008,12 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const ssr = await ssrInit(context);
   const session = await getServerSession(context);
   let tz: string | null = null;
+  let userTimeFormat: number | null = null;
 
   if (session) {
     const user = await ssr.viewer.me.fetch();
     tz = user.timeZone;
+    userTimeFormat = user.timeFormat;
   }
 
   const parsedQuery = querySchema.safeParse(context.query);
@@ -1113,6 +1136,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     select: {
       success: true,
       refunded: true,
+      currency: true,
+      amount: true,
+      paymentOption: true,
     },
   });
 
@@ -1128,6 +1154,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       bookingInfo,
       paymentStatus: payment,
       ...(tz && { tz }),
+      userTimeFormat,
     },
   };
 }

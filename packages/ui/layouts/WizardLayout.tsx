@@ -1,11 +1,12 @@
+// eslint-disable-next-line no-restricted-imports
 import { noop } from "lodash";
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import { APP_NAME } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { StepCard, Steps, Button } from "@calcom/ui";
+import { Button, SkeletonText, StepCard, Steps } from "@calcom/ui";
 
 export function WizardLayout({
   children,
@@ -15,9 +16,9 @@ export function WizardLayout({
 }: {
   children: React.ReactNode;
 } & { maxSteps?: number; currentStep?: number; isOptionalCallback?: () => void }) {
-  const { t } = useLocale();
+  const { t, isLocaleReady } = useLocale();
   const [meta, setMeta] = useState({ title: "", subtitle: " " });
-  const router = useRouter();
+  const pathname = usePathname();
   const { title, subtitle } = meta;
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export function WizardLayout({
       title: window.document.title,
       subtitle: window.document.querySelector('meta[name="description"]')?.getAttribute("content") || "",
     });
-  }, [router.asPath]);
+  }, [pathname]);
 
   return (
     <div
@@ -39,10 +40,19 @@ export function WizardLayout({
           <div className="sm:mx-auto sm:w-full sm:max-w-[600px]">
             <div className="mx-auto sm:max-w-[520px]">
               <header>
-                <p className="font-cal mb-3 text-[28px] font-medium leading-7">
-                  {title.replace(` | ${APP_NAME}`, "")}&nbsp;
-                </p>
-                <p className="text-subtle font-sans text-sm font-normal">{subtitle}&nbsp;</p>
+                {isLocaleReady ? (
+                  <>
+                    <p className="font-cal mb-3 text-[28px] font-medium leading-7">
+                      {title.replace(` | ${APP_NAME}`, "")}&nbsp;
+                    </p>
+                    <p className="text-subtle font-sans text-sm font-normal">{subtitle}&nbsp;</p>
+                  </>
+                ) : (
+                  <>
+                    <SkeletonText className="h-6 w-1/2" />
+                    <SkeletonText className="mt-4 h-4 w-3/4" />
+                  </>
+                )}
               </header>
               <Steps maxSteps={maxSteps} currentStep={currentStep} navigateToStep={noop} />
             </div>

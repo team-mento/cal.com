@@ -5,7 +5,8 @@ import Cropper from "react-easy-crop";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 
-import { Button, Dialog, DialogClose, DialogContent, DialogTrigger } from "../..";
+import type { ButtonColor } from "../..";
+import { Button, Dialog, DialogClose, DialogContent, DialogTrigger, DialogFooter } from "../..";
 import { showToast } from "../toast";
 
 type ReadAsMethod = "readAsText" | "readAsDataURL" | "readAsArrayBuffer" | "readAsBinaryString";
@@ -65,6 +66,7 @@ type ImageUploaderProps = {
   handleAvatarChange: (imageSrc: string) => void;
   imageSrc?: string;
   target: string;
+  triggerButtonColor?: ButtonColor;
 };
 
 interface FileEvent<T = Element> extends FormEvent<T> {
@@ -117,6 +119,7 @@ export default function ImageUploader({
   id,
   buttonMsg,
   handleAvatarChange,
+  triggerButtonColor,
   ...props
 }: ImageUploaderProps) {
   const { t } = useLocale();
@@ -169,18 +172,11 @@ export default function ImageUploader({
         (opened) => !opened && setFile(null) // unset file on close
       }>
       <DialogTrigger asChild>
-        <Button color="secondary" type="button" className="py-1 text-sm">
+        <Button color={triggerButtonColor ?? "secondary"} type="button" className="py-1 text-sm">
           {buttonMsg}
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <div className="mb-4 sm:flex sm:items-start">
-          <div className="mt-3 text-center sm:mt-0 sm:text-left">
-            <h3 className="font-cal text-emphasis text-lg leading-6" id="modal-title">
-              {t("upload_target", { target })}
-            </h3>
-          </div>
-        </div>
+      <DialogContent title={t("upload_target", { target })}>
         <div className="mb-4">
           <div className="cropper mt-6 flex flex-col items-center justify-center p-8">
             {!result && (
@@ -210,12 +206,12 @@ export default function ImageUploader({
             </label>
           </div>
         </div>
-        <div className="mt-5 flex flex-row-reverse gap-x-2 sm:mt-4">
-          <DialogClose color="secondary" onClick={() => showCroppedImage(croppedAreaPixels)}>
+        <DialogFooter className="relative">
+          <DialogClose color="primary" onClick={() => showCroppedImage(croppedAreaPixels)}>
             {t("save")}
           </DialogClose>
           <DialogClose color="minimal">{t("cancel")}</DialogClose>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

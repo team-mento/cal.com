@@ -16,6 +16,9 @@ type BookingOptions = {
   rescheduleUid: string | undefined;
   username: string;
   metadata?: Record<string, string>;
+  bookingUid?: string;
+  seatReferenceUid?: string;
+  hashedLink?: string | null;
 };
 
 export const mapBookingToMutationInput = ({
@@ -28,6 +31,9 @@ export const mapBookingToMutationInput = ({
   rescheduleUid,
   username,
   metadata,
+  bookingUid,
+  seatReferenceUid,
+  hashedLink,
 }: BookingOptions): BookingCreateBody => {
   return {
     ...values,
@@ -43,9 +49,10 @@ export const mapBookingToMutationInput = ({
     language: language,
     rescheduleUid,
     metadata: metadata || {},
-    hasHashedBookingLink: false,
-    // hasHashedBookingLink,
-    // hashedLink,
+    hasHashedBookingLink: hashedLink ? true : false,
+    bookingUid,
+    seatReferenceUid,
+    hashedLink,
   };
 };
 

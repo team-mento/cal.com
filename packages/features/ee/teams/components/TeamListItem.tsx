@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import InviteLinkSettingsModal from "@calcom/ee/teams/components/InviteLinkSettingsModal";
 import MemberInvitationModal from "@calcom/ee/teams/components/MemberInvitationModal";
-import { useOrgBrandingValues } from "@calcom/features/ee/organizations/hooks";
-import { subdomainSuffix } from "@calcom/features/ee/organizations/lib/orgDomains";
 import classNames from "@calcom/lib/classNames";
 import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
@@ -41,6 +40,7 @@ import {
   X,
 } from "@calcom/ui/components/icon";
 
+import { useOrgBranding } from "../../organizations/context/provider";
 import { TeamRole } from "./TeamPill";
 
 interface Props {
@@ -53,13 +53,12 @@ interface Props {
 }
 
 export default function TeamListItem(props: Props) {
+  const searchParams = useSearchParams();
   const { t, i18n } = useLocale();
-
-  const router = useRouter();
   const utils = trpc.useContext();
   const team = props.team;
 
-  const showDialog = router.query.inviteModal === "true";
+  const showDialog = searchParams?.get("inviteModal") === "true";
   const [openMemberInvitationModal, setOpenMemberInvitationModal] = useState(showDialog);
   const [openInviteLinkSettingsModal, setOpenInviteLinkSettingsModal] = useState(false);
 
@@ -68,7 +67,10 @@ export default function TeamListItem(props: Props) {
 
   const acceptOrLeaveMutation = trpc.viewer.teams.acceptOrLeave.useMutation({
     onSuccess: () => {
+      showToast(t("success"), "success");
+      utils.viewer.teams.get.invalidate();
       utils.viewer.teams.list.invalidate();
+      utils.viewer.teams.hasTeamPlan.invalidate();
       utils.viewer.teams.listInvites.invalidate();
     },
   });
@@ -82,7 +84,7 @@ export default function TeamListItem(props: Props) {
 
   const acceptInvite = () => acceptOrLeave(true);
   const declineInvite = () => acceptOrLeave(false);
-  const orgBranding = useOrgBrandingValues();
+  const orgBranding = useOrgBranding();
 
   const isOwner = props.team.role === MembershipRole.OWNER;
   const isInvitee = !props.team.accepted;
@@ -104,7 +106,7 @@ export default function TeamListItem(props: Props) {
         <span className="text-muted block text-xs">
           {team.slug
             ? orgBranding
-              ? `${orgBranding.slug}.${subdomainSuffix()}/${team.slug}`
+              ? `${orgBranding.fullDomain}/${team.slug}`
               : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team/${team.slug}`
             : "Unpublished team"}
         </span>
@@ -121,6 +123,7 @@ export default function TeamListItem(props: Props) {
         onExit={() => {
           setOpenMemberInvitationModal(false);
         }}
+        isLoading={inviteMemberMutation.isLoading}
         onSubmit={(values, resetFields) => {
           inviteMemberMutation.mutate(
             {
@@ -180,7 +183,7 @@ export default function TeamListItem(props: Props) {
       <div className={classNames("flex items-center  justify-between", !isInvitee && "hover:bg-muted group")}>
         {!isInvitee ? (
           <Link
-            href={"/settings/teams/" + team.id + "/profile"}
+            href={`/settings/teams/${team.id}/profile`}
             className="flex-grow cursor-pointer truncate text-sm"
             title={`${team.name}`}>
             {teamInfo}
@@ -235,7 +238,11 @@ export default function TeamListItem(props: Props) {
                       color="secondary"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          process.env.NEXT_PUBLIC_WEBSITE_URL + "/team/" + team.slug
+                          `${
+                            orgBranding
+                              ? `${orgBranding.fullDomain}`
+                              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team`
+                          }/${team.slug}`
                         );
                         showToast(t("link_copied"), "success");
                       }}
@@ -259,7 +266,7 @@ export default function TeamListItem(props: Props) {
                       <DropdownMenuItem>
                         <DropdownItem
                           type="button"
-                          href={"/settings/teams/" + team.id + "/profile"}
+                          href={`/settings/teams/${team.id}/profile`}
                           StartIcon={Edit2}>
                           {t("edit_team") as string}
                         </DropdownItem>
@@ -271,22 +278,28 @@ export default function TeamListItem(props: Props) {
                         <DropdownItem
                           type="button"
                           target="_blank"
-                          href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/team/${team.slug}`}
+                          href={`${
+                            orgBranding
+                              ? `${orgBranding.fullDomain}`
+                              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team`
+                          }/${team.slug}`}
                           StartIcon={ExternalLink}>
                           {t("preview_team") as string}
                         </DropdownItem>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem>
-                      <DropdownItem
-                        type="button"
-                        onClick={() => {
-                          setOpenMemberInvitationModal(true);
-                        }}
-                        StartIcon={Send}>
-                        {t("invite_team_member") as string}
-                      </DropdownItem>
-                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem>
+                        <DropdownItem
+                          type="button"
+                          onClick={() => {
+                            setOpenMemberInvitationModal(true);
+                          }}
+                          StartIcon={Send}>
+                          {t("invite_team_member") as string}
+                        </DropdownItem>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     {isOwner && (
                       <DropdownMenuItem>

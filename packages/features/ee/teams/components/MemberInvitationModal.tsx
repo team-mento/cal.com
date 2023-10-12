@@ -1,17 +1,19 @@
-import { PaperclipIcon, UserIcon, Users } from "lucide-react";
+import { BuildingIcon, PaperclipIcon, UserIcon, Users } from "lucide-react";
 import { Trans } from "next-i18next";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import type { FormEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 
+import TeamInviteFromOrg from "@calcom/ee/organizations/components/TeamInviteFromOrg";
 import { classNames } from "@calcom/lib";
 import { IS_TEAM_BILLING_ENABLED, WEBAPP_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { MembershipRole } from "@calcom/prisma/enums";
+import type { RouterOutputs } from "@calcom/trpc";
 import { trpc } from "@calcom/trpc";
 import {
   Button,
-  Checkbox as CheckboxField,
+  CheckboxField,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -30,12 +32,17 @@ import { GoogleWorkspaceInviteButton } from "./GoogleWorkspaceInviteButton";
 
 type MemberInvitationModalProps = {
   isOpen: boolean;
+  justEmailInvites?: boolean;
   onExit: () => void;
+  orgMembers?: RouterOutputs["viewer"]["organizations"]["getMembers"];
   onSubmit: (values: NewMemberForm, resetFields: () => void) => void;
   onSettingsOpen?: () => void;
   teamId: number;
-  members: PendingMember[];
+  members?: PendingMember[];
   token?: string;
+  isLoading?: boolean;
+  disableCopyLink?: boolean;
+  isOrg?: boolean;
 };
 
 type MembershipRoleOption = {
@@ -49,17 +56,25 @@ export interface NewMemberForm {
   sendInviteEmail: boolean;
 }
 
-type ModalMode = "INDIVIDUAL" | "BULK";
+type ModalMode = "INDIVIDUAL" | "BULK" | "ORGANIZATION";
 
 interface FileEvent<T = Element> extends FormEvent<T> {
   target: EventTarget & T;
 }
 
+function toggleElementInArray(value: string[] | string | undefined, element: string): string[] {
+  const array = value ? (Array.isArray(value) ? value : [value]) : [];
+  return array.includes(element) ? array.filter((item) => item !== element) : [...array, element];
+}
+
 export default function MemberInvitationModal(props: MemberInvitationModalProps) {
   const { t } = useLocale();
+  const { disableCopyLink = false, isOrg = false } = props;
   const trpcContext = trpc.useContext();
 
-  const [modalImportMode, setModalInputMode] = useState<ModalMode>("INDIVIDUAL");
+  const [modalImportMode, setModalInputMode] = useState<ModalMode>(
+    props?.orgMembers && props.orgMembers?.length > 0 ? "ORGANIZATION" : "INDIVIDUAL"
+  );
 
   const createInviteMutation = trpc.viewer.teams.createInvite.useMutation({
     onSuccess(token) {
@@ -73,7 +88,12 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
   });
 
   const copyInviteLinkToClipboard = async (token: string) => {
-    const inviteLink = `${WEBAPP_URL}/teams?token=${token}`;
+    const isOrgInvite = isOrg;
+    const teamInviteLink = `${WEBAPP_URL}/teams?token=${token}`;
+    const orgInviteLink = `${WEBAPP_URL}/signup?token=${token}&callbackUrl=/getting-started`;
+
+    const inviteLink =
+      isOrgInvite || (props?.orgMembers && props.orgMembers?.length > 0) ? orgInviteLink : teamInviteLink;
     await navigator.clipboard.writeText(inviteLink);
     showToast(t("invite_link_copied"), "success");
   };
@@ -86,12 +106,32 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
     ];
   }, [t]);
 
+  const toggleGroupOptions = useMemo(() => {
+    const array = [
+      {
+        value: "INDIVIDUAL",
+        label: t("invite_team_individual_segment"),
+        iconLeft: <UserIcon />,
+      },
+      { value: "BULK", label: t("invite_team_bulk_segment"), iconLeft: <Users /> },
+    ];
+    if (props?.orgMembers && props.orgMembers?.length > 0) {
+      array.unshift({
+        value: "ORGANIZATION",
+        label: t("organization"),
+        iconLeft: <BuildingIcon />,
+      });
+    }
+    return array;
+  }, [t, props.orgMembers]);
+
   const newMemberFormMethods = useForm<NewMemberForm>();
 
   const validateUniqueInvite = (value: string) => {
+    if (!props?.members?.length) return true;
     return !(
-      props.members.some((member) => member?.username === value) ||
-      props.members.some((member) => member?.email === value)
+      props?.members.some((member) => member?.username === value) ||
+      props?.members.some((member) => member?.email === value)
     );
   };
 
@@ -120,6 +160,8 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
     setModalInputMode("INDIVIDUAL");
   };
 
+  const importRef = useRef<HTMLInputElement | null>(null);
+
   return (
     <Dialog
       name="inviteModal"
@@ -129,6 +171,7 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
         newMemberFormMethods.reset();
       }}>
       <DialogContent
+        enableOverflow
         type="creation"
         title={t("invite_team_member")}
         description={
@@ -148,19 +191,8 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
           <ToggleGroup
             isFullWidth={true}
             onValueChange={(val) => setModalInputMode(val as ModalMode)}
-            defaultValue="INDIVIDUAL"
-            options={[
-              {
-                value: "INDIVIDUAL",
-                label: <span className="line-clamp-1">{t("invite_team_individual_segment")}</span>,
-                iconLeft: <UserIcon />,
-              },
-              {
-                value: "BULK",
-                label: <span className="line-clamp-1">{t("invite_team_bulk_segment")}</span>,
-                iconLeft: <Users />,
-              },
-            ]}
+            defaultValue={modalImportMode}
+            options={toggleGroupOptions}
           />
         </div>
 
@@ -181,7 +213,7 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                 render={({ field: { onChange }, fieldState: { error } }) => (
                   <>
                     <TextField
-                      label={t("email_or_username")}
+                      label={props.justEmailInvites ? t("email") : t("email_or_username")}
                       id="inviteUser"
                       name="inviteUser"
                       placeholder="email@example.com"
@@ -207,16 +239,18 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                       {/* TODO: Make this a fancy email input that styles on a successful email. */}
                       <TextAreaField
                         name="emails"
-                        label="Invite via email"
+                        label={t("invite_via_email")}
                         rows={4}
                         autoCorrect="off"
                         placeholder="john@doe.com, alex@smith.com"
                         required
                         value={value}
                         onChange={(e) => {
-                          const emails = e.target.value
-                            .split(",")
-                            .map((email) => email.trim().toLocaleLowerCase());
+                          const targetValues = e.target.value.split(",");
+                          const emails =
+                            targetValues.length === 1
+                              ? targetValues[0].trim().toLocaleLowerCase()
+                              : targetValues.map((email) => email.trim().toLocaleLowerCase());
 
                           return onChange(emails);
                         }}
@@ -234,20 +268,48 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                 <Button
                   type="button"
                   color="secondary"
+                  onClick={() => {
+                    if (importRef.current) {
+                      importRef.current.click();
+                    }
+                  }}
                   StartIcon={PaperclipIcon}
                   className="mt-3 justify-center stroke-2">
-                  <label htmlFor="bulkInvite">
-                    Upload a .csv file
-                    <input
-                      id="bulkInvite"
-                      type="file"
-                      accept=".csv"
-                      style={{ display: "none" }}
-                      onChange={handleFileUpload}
-                    />
-                  </label>
+                  {t("upload_csv_file")}
                 </Button>
+                <input
+                  ref={importRef}
+                  hidden
+                  id="bulkInvite"
+                  type="file"
+                  accept=".csv"
+                  style={{ display: "none" }}
+                  onChange={handleFileUpload}
+                />
               </div>
+            )}
+            {modalImportMode === "ORGANIZATION" && (
+              <Controller
+                name="emailOrUsername"
+                control={newMemberFormMethods.control}
+                rules={{
+                  required: t("enter_email_or_username"),
+                }}
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <TeamInviteFromOrg
+                      selectedEmails={value}
+                      handleOnChecked={(userEmail) => {
+                        // If 'value' is not an array, create a new array with 'userEmail' to allow future updates to the array.
+                        // If 'value' is an array, update the array by either adding or removing 'userEmail'.
+                        const newValue = toggleElementInArray(value, userEmail);
+                        onChange(newValue);
+                      }}
+                      orgMembers={props.orgMembers}
+                    />
+                  </>
+                )}
+              />
             )}
             <Controller
               name="role"
@@ -282,8 +344,8 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                 />
               )}
             />
-            <div className="flex">
-              {props.token && (
+            {props.token && (
+              <div className="flex">
                 <Button
                   type="button"
                   color="minimal"
@@ -295,12 +357,12 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                   data-testid="edit-invite-link-button">
                   {t("edit_invite_link")}
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           <DialogFooter showDivider>
-            <div className="flex w-full flex-col items-end gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
+            {!disableCopyLink && (
+              <div className="flex-grow">
                 <Button
                   type="button"
                   color="minimal"
@@ -313,25 +375,27 @@ export default function MemberInvitationModal(props: MemberInvitationModalProps)
                   className={classNames("gap-2", props.token && "opacity-50")}
                   data-testid="copy-invite-link-button">
                   <Link className="text-default h-4 w-4" aria-hidden="true" />
-                  {t("copy_invite_link")}
+                  <span className="hidden sm:inline">{t("copy_invite_link")}</span>
                 </Button>
               </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  color="minimal"
-                  onClick={() => {
-                    props.onExit();
-                    resetFields();
-                  }}>
-                  {t("cancel")}
-                </Button>
-                <Button type="submit" color="primary" data-testid="invite-new-member-button">
-                  {t("send_invite")}
-                </Button>
-              </div>
-            </div>
+            )}
+            <Button
+              type="button"
+              color="minimal"
+              onClick={() => {
+                props.onExit();
+                resetFields();
+              }}>
+              {t("cancel")}
+            </Button>
+            <Button
+              loading={props.isLoading || createInviteMutation.isLoading}
+              type="submit"
+              color="primary"
+              className="me-2 ms-2"
+              data-testid="invite-new-member-button">
+              {t("send_invite")}
+            </Button>
           </DialogFooter>
         </Form>
       </DialogContent>

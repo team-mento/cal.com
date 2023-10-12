@@ -1,4 +1,4 @@
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 
 import { useIntercom } from "@calcom/features/ee/support/lib/intercom/useIntercom";
 import { getLayout } from "@calcom/features/settings/layouts/SettingsLayout";
@@ -22,21 +22,20 @@ const CtaRow = ({ title, description, className, children }: CtaRowProps) => {
     <>
       <section className={classNames("text-default flex flex-col sm:flex-row", className)}>
         <div>
-          <h2 className="font-medium">{title}</h2>
+          <h2 className="text-base font-semibold">{title}</h2>
           <p>{description}</p>
         </div>
         <div className="flex-shrink-0 pt-3 sm:ml-auto sm:pl-3 sm:pt-0">{children}</div>
       </section>
-      <hr className="border-subtle" />
     </>
   );
 };
 
 const BillingView = () => {
+  const pathname = usePathname();
   const { t } = useLocale();
   const { open } = useIntercom();
-  const router = useRouter();
-  const returnTo = router.asPath;
+  const returnTo = pathname;
   const billingHref = `/api/integrations/stripepayment/portal?returnTo=${WEBAPP_URL}${returnTo}`;
 
   const onContactSupportClick = async () => {
@@ -45,13 +44,15 @@ const BillingView = () => {
 
   return (
     <>
-      <Meta title={t("billing")} description={t("manage_billing_description")} />
-      <div className="space-y-6 text-sm sm:space-y-8">
+      <Meta title={t("billing")} description={t("manage_billing_description")} borderInShellHeader={true} />
+      <div className="border-subtle space-y-6 rounded-b-xl border border-t-0 px-6 py-8 text-sm sm:space-y-8">
         <CtaRow title={t("view_and_manage_billing_details")} description={t("view_and_edit_billing_details")}>
           <Button color="primary" href={billingHref} target="_blank" EndIcon={ExternalLink}>
             {t("billing_portal")}
           </Button>
         </CtaRow>
+
+        <hr className="border-subtle" />
 
         <CtaRow title={t("need_anything_else")} description={t("further_billing_help")}>
           <Button color="secondary" onClick={onContactSupportClick}>

@@ -2,10 +2,9 @@ import type { User as UserAuth } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { NextRouter } from "next/router";
-import { useRouter } from "next/router";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
-import React, { Fragment, useEffect, useState, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import type { Dispatch, ReactElement, ReactNode, SetStateAction } from "react";
+import React, { cloneElement, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "react-hot-toast";
 
 import dayjs from "@calcom/dayjs";
@@ -13,7 +12,7 @@ import { useIsEmbed } from "@calcom/embed-core/embed-iframe";
 import UnconfirmedBookingBadge from "@calcom/features/bookings/UnconfirmedBookingBadge";
 import ImpersonatingBanner from "@calcom/features/ee/impersonation/components/ImpersonatingBanner";
 import { OrgUpgradeBanner } from "@calcom/features/ee/organizations/components/OrgUpgradeBanner";
-import { useOrgBrandingValues } from "@calcom/features/ee/organizations/hooks";
+import { getOrgFullDomain } from "@calcom/features/ee/organizations/lib/orgDomains";
 import HelpMenuItem from "@calcom/features/ee/support/components/HelpMenuItem";
 import { TeamsUpgradeBanner } from "@calcom/features/ee/teams/components";
 import { useFlagMap } from "@calcom/features/flags/context/provider";
@@ -23,20 +22,20 @@ import AdminPasswordBanner from "@calcom/features/users/components/AdminPassword
 import VerifyEmailBanner from "@calcom/features/users/components/VerifyEmailBanner";
 import classNames from "@calcom/lib/classNames";
 import { APP_NAME, WEBAPP_URL } from "@calcom/lib/constants";
-import { getPlaceholderAvatar } from "@calcom/lib/defaultAvatarImage";
 import getBrandColours from "@calcom/lib/getBrandColours";
+import { useBookerUrl } from "@calcom/lib/hooks/useBookerUrl";
 import { useIsomorphicLayoutEffect } from "@calcom/lib/hooks/useIsomorphicLayoutEffect";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { isKeyInObject } from "@calcom/lib/isKeyInObject";
 import type { User } from "@calcom/prisma/client";
 import { trpc } from "@calcom/trpc/react";
-import useAvatarQuery from "@calcom/trpc/react/hooks/useAvatarQuery";
 import useEmailVerifyCheck from "@calcom/trpc/react/hooks/useEmailVerifyCheck";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
 import {
   Avatar,
   Button,
+  ButtonOrLink,
   Credits,
   Dropdown,
   DropdownItem,
@@ -48,32 +47,33 @@ import {
   ErrorBoundary,
   HeadSeo,
   Logo,
+  showToast,
   SkeletonText,
   Tooltip,
-  showToast,
   useCalcomTheme,
-  ButtonOrLink,
 } from "@calcom/ui";
 import {
   ArrowLeft,
   ArrowRight,
   BarChart,
   Calendar,
+  ChevronDown,
   Clock,
+  Copy,
   ExternalLink,
   FileText,
   Grid,
   Link as LinkIcon,
   LogOut,
   MoreHorizontal,
-  ChevronDown,
-  Copy,
   Settings,
+  User as UserIcon,
   Users,
   Zap,
-  User as UserIcon,
 } from "@calcom/ui/components/icon";
+import { IS_VISUAL_REGRESSION_TESTING } from "@calcom/web/constants";
 
+import { useOrgBranding } from "../ee/organizations/context/provider";
 import FreshChatProvider from "../ee/support/lib/freshchat/FreshChatProvider";
 import { TeamInviteBadge } from "./TeamInviteBadge";
 
@@ -107,19 +107,15 @@ function useRedirectToLoginIfUnauthenticated(isPublic = false) {
   const { data: session, status } = useSession();
   const loading = status === "loading";
   const router = useRouter();
-
   useEffect(() => {
     if (isPublic) {
       return;
     }
 
     if (!loading && !session) {
-      router.replace({
-        pathname: "/auth/login",
-        query: {
-          callbackUrl: `${WEBAPP_URL}${location.pathname}${location.search}`,
-        },
-      });
+      const urlSearchParams = new URLSearchParams();
+      urlSearchParams.set("callbackUrl", `${WEBAPP_URL}${location.pathname}${location.search}`);
+      router.replace(`/auth/login?${urlSearchParams.toString()}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, session, isPublic]);
@@ -130,36 +126,8 @@ function useRedirectToLoginIfUnauthenticated(isPublic = false) {
   };
 }
 
-function useRedirectToOnboardingIfNeeded() {
-  const router = useRouter();
-  const query = useMeQuery();
-  const user = query.data;
-  const flags = useFlagMap();
-
-  const { data: email } = useEmailVerifyCheck();
-
-  const needsEmailVerification = !email?.isVerified && flags["email-verification"];
-
-  const isRedirectingToOnboarding = user && shouldShowOnboarding(user);
-
-  useEffect(() => {
-    if (isRedirectingToOnboarding && !needsEmailVerification) {
-      router.replace({
-        pathname: "/getting-started",
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRedirectingToOnboarding, needsEmailVerification]);
-
-  return {
-    isRedirectingToOnboarding,
-  };
-}
-
-const Layout = (props: LayoutProps) => {
-  const pageTitle = typeof props.heading === "string" && !props.title ? props.heading : props.title;
+function AppTop({ setBannersHeight }: { setBannersHeight: Dispatch<SetStateAction<number>> }) {
   const bannerRef = useRef<HTMLDivElement | null>(null);
-  const [bannersHeight, setBannersHeight] = useState<number>(0);
 
   useIsomorphicLayoutEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -181,6 +149,45 @@ const Layout = (props: LayoutProps) => {
   }, [bannerRef]);
 
   return (
+    <div ref={bannerRef} className="sticky top-0 z-10 w-full divide-y divide-black">
+      <TeamsUpgradeBanner />
+      <OrgUpgradeBanner />
+      <ImpersonatingBanner />
+      <AdminPasswordBanner />
+      <VerifyEmailBanner />
+    </div>
+  );
+}
+
+function useRedirectToOnboardingIfNeeded() {
+  const router = useRouter();
+  const query = useMeQuery();
+  const user = query.data;
+  const flags = useFlagMap();
+
+  const { data: email } = useEmailVerifyCheck();
+
+  const needsEmailVerification = !email?.isVerified && flags["email-verification"];
+
+  const isRedirectingToOnboarding = user && shouldShowOnboarding(user);
+
+  useEffect(() => {
+    if (isRedirectingToOnboarding && !needsEmailVerification) {
+      router.replace("/getting-started");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRedirectingToOnboarding, needsEmailVerification]);
+
+  return {
+    isRedirectingToOnboarding,
+  };
+}
+
+const Layout = (props: LayoutProps) => {
+  const [bannersHeight, setBannersHeight] = useState<number>(0);
+  const pageTitle = typeof props.heading === "string" && !props.title ? props.heading : props.title;
+
+  return (
     <>
       {!props.withoutSeo && (
         <HeadSeo
@@ -195,15 +202,13 @@ const Layout = (props: LayoutProps) => {
       {/* todo: only run this if timezone is different */}
       <TimezoneChangeDialog />
       <div className="flex min-h-screen flex-col">
-        <div ref={bannerRef} className="sticky top-0 z-10 w-full divide-y divide-black">
-          <TeamsUpgradeBanner />
-          <OrgUpgradeBanner />
-          <ImpersonatingBanner />
-          <AdminPasswordBanner />
-          <VerifyEmailBanner />
-        </div>
+        <AppTop setBannersHeight={setBannersHeight} />
         <div className="flex flex-1" data-testid="dashboard-shell">
-          {props.SidebarContainer || <SideBarContainer bannersHeight={bannersHeight} />}
+          {props.SidebarContainer ? (
+            cloneElement(props.SidebarContainer, { bannersHeight })
+          ) : (
+            <SideBarContainer bannersHeight={bannersHeight} />
+          )}
           <div className="flex w-0 flex-1 flex-col">
             <MainContainer {...props} />
           </div>
@@ -225,7 +230,7 @@ type LayoutProps = {
   CTA?: ReactNode;
   large?: boolean;
   MobileNavigationContainer?: ReactNode;
-  SidebarContainer?: ReactNode;
+  SidebarContainer?: ReactElement;
   TopNavContainer?: ReactNode;
   drawerState?: DrawerState;
   HeadingLeftIcon?: ReactNode;
@@ -296,7 +301,9 @@ interface UserDropdownProps {
 function UserDropdown({ small }: UserDropdownProps) {
   const { t } = useLocale();
   const { data: user } = useMeQuery();
-  const { data: avatar } = useAvatarQuery();
+  const utils = trpc.useContext();
+  const bookerUrl = useBookerUrl();
+
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     //@ts-ignore
@@ -309,16 +316,31 @@ function UserDropdown({ small }: UserDropdownProps) {
       });
   });
   const mutation = trpc.viewer.away.useMutation({
+    onMutate: async ({ away }) => {
+      await utils.viewer.me.cancel();
+
+      const previousValue = utils.viewer.me.getData();
+
+      if (previousValue) {
+        utils.viewer.me.setData(undefined, { ...previousValue, away });
+      }
+
+      return { previousValue };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousValue) {
+        utils.viewer.me.setData(undefined, context.previousValue);
+      }
+
+      showToast(t("toggle_away_error"), "error");
+    },
     onSettled() {
       utils.viewer.me.invalidate();
     },
   });
-  const utils = trpc.useContext();
   const [helpOpen, setHelpOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  if (!user) {
-    return null;
-  }
+
   const onHelpItemSelect = () => {
     setHelpOpen(false);
     setMenuOpen(false);
@@ -329,35 +351,36 @@ function UserDropdown({ small }: UserDropdownProps) {
   if (!user) {
     return null;
   }
+
   return (
     <Dropdown open={menuOpen}>
       <DropdownMenuTrigger asChild onClick={() => setMenuOpen((menuOpen) => !menuOpen)}>
         <button
           className={classNames(
             "hover:bg-emphasis group mx-0 flex cursor-pointer appearance-none items-center rounded-full text-left outline-none focus:outline-none focus:ring-0 md:rounded-none lg:rounded",
-            small ? "p-2" : "px-2 py-1"
+            small ? "p-2" : "px-2 py-1.5"
           )}>
           <span
             className={classNames(
-              small ? "h-4 w-4" : "h-6 w-6 ltr:mr-2 rtl:ml-2",
-              "relative flex-shrink-0 rounded-full bg-gray-300"
+              small ? "h-4 w-4" : "h-5 w-5 ltr:mr-2 rtl:ml-2",
+              "relative flex-shrink-0 rounded-full "
             )}>
             <Avatar
-              size={small ? "xs" : "sm"}
-              imageSrc={avatar?.avatar || WEBAPP_URL + "/" + user.username + "/avatar.png"}
+              size={small ? "xs" : "xsm"}
+              imageSrc={`${bookerUrl}/${user.username}/avatar.png`}
               alt={user.username || "Nameless User"}
               className="overflow-hidden"
             />
             <span
               className={classNames(
-                "border-muted absolute -bottom-1 -right-1 rounded-full border-2 bg-green-500",
+                "border-muted absolute -bottom-1 -right-1 rounded-full border bg-green-500",
                 user.away ? "bg-yellow-500" : "bg-green-500",
-                small ? "-bottom-0.5 -right-0.5 h-2.5 w-2.5" : "bottom-0 right-0 h-3 w-3"
+                small ? "-bottom-0.5 -right-0.5 h-2.5 w-2.5" : "-bottom-0.5 -right-0 h-2 w-2"
               )}
             />
           </span>
           {!small && (
-            <span className="flex flex-grow items-center">
+            <span className="flex flex-grow items-center gap-2">
               <span className="line-clamp-1 flex-grow text-sm leading-none">
                 <span className="text-emphasis block font-medium">{user.name || "Nameless User"}</span>
               </span>
@@ -403,48 +426,6 @@ function UserDropdown({ small }: UserDropdownProps) {
                     {t("my_settings")}
                   </DropdownItem>
                 </DropdownMenuItem>
-                {/*<DropdownMenuItem>*/}
-                {/*  <DropdownItem*/}
-                {/*    type="button"*/}
-                {/*    StartIcon={(props) => (*/}
-                {/*      <Moon className={classNames("text-default", props.className)} aria-hidden="true" />*/}
-                {/*    )}*/}
-                {/*    onClick={() => {*/}
-                {/*      mutation.mutate({ away: !user?.away });*/}
-                {/*      utils.viewer.me.invalidate();*/}
-                {/*    }}>*/}
-                {/*    {user.away ? t("set_as_free") : t("set_as_away")}*/}
-                {/*  </DropdownItem>*/}
-                {/*</DropdownMenuItem>*/}
-                {/*<DropdownMenuSeparator />*/}
-                {/*<DropdownMenuItem>*/}
-                {/*  <DropdownItem*/}
-                {/*    StartIcon={(props) => <Slack strokeWidth={1.5} {...props} />}*/}
-                {/*    target="_blank"*/}
-                {/*    rel="noreferrer"*/}
-                {/*    href={JOIN_SLACK}>*/}
-                {/*    {t("join_our_slack")}*/}
-                {/*  </DropdownItem>*/}
-                {/*</DropdownMenuItem>*/}
-                {/*<DropdownMenuItem>*/}
-                {/*  <DropdownItem StartIcon={Map} target="_blank" href={ROADMAP}>*/}
-                {/*    {t("visit_roadmap")}*/}
-                {/*  </DropdownItem>*/}
-                {/*</DropdownMenuItem>*/}
-                {/*<DropdownMenuItem>*/}
-                {/*  <DropdownItem*/}
-                {/*    type="button"*/}
-                {/*    StartIcon={(props) => <HelpCircle aria-hidden="true" {...props} />}*/}
-                {/*    onClick={() => setHelpOpen(true)}>*/}
-                {/*    {t("help")}*/}
-                {/*  </DropdownItem>*/}
-                {/*</DropdownMenuItem>*/}
-                {/*<DropdownMenuItem className="desktop-hidden hidden lg:flex">*/}
-                {/*  <DropdownItem StartIcon={Download} target="_blank" rel="noreferrer" href={DESKTOP_APP_LINK}>*/}
-                {/*    {t("download_desktop_app")}*/}
-                {/*  </DropdownItem>*/}
-                {/*</DropdownMenuItem>*/}
-
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem>
@@ -478,11 +459,11 @@ export type NavigationItemType = {
   isCurrent?: ({
     item,
     isChild,
-    router,
+    pathname,
   }: {
     item: Pick<NavigationItemType, "href">;
     isChild?: boolean;
-    router: NextRouter;
+    pathname: string;
   }) => boolean;
 };
 
@@ -500,10 +481,7 @@ const navigation: NavigationItemType[] = [
     href: "/bookings/upcoming",
     icon: Calendar,
     badge: <UnconfirmedBookingBadge />,
-    isCurrent: ({ router }) => {
-      const path = router.asPath.split("?")[0];
-      return path.startsWith("/bookings");
-    },
+    isCurrent: ({ pathname }) => pathname?.startsWith("/bookings"),
   },
   {
     name: "availability",
@@ -521,34 +499,26 @@ const navigation: NavigationItemType[] = [
     name: "apps",
     href: "/apps",
     icon: Grid,
-    isCurrent: ({ router, item }) => {
-      const path = router.asPath.split("?")[0];
+    isCurrent: ({ pathname: path, item }) => {
       // During Server rendering path is /v2/apps but on client it becomes /apps(weird..)
-      return (
-        (path.startsWith(item.href) || path.startsWith("/v2" + item.href)) && !path.includes("routing-forms/")
-      );
+      return path?.startsWith(item.href) && !path?.includes("routing-forms/");
     },
     child: [
       {
         name: "app_store",
         href: "/apps",
-        isCurrent: ({ router, item }) => {
-          const path = router.asPath.split("?")[0];
+        isCurrent: ({ pathname: path, item }) => {
           // During Server rendering path is /v2/apps but on client it becomes /apps(weird..)
           return (
-            (path.startsWith(item.href) || path.startsWith("/v2" + item.href)) &&
-            !path.includes("routing-forms/") &&
-            !path.includes("/installed")
+            path?.startsWith(item.href) && !path?.includes("routing-forms/") && !path?.includes("/installed")
           );
         },
       },
       {
         name: "installed_apps",
         href: "/apps/installed/calendar",
-        isCurrent: ({ router }) => {
-          const path = router.asPath;
-          return path.startsWith("/apps/installed/") || path.startsWith("/v2/apps/installed/");
-        },
+        isCurrent: ({ pathname: path }) =>
+          path?.startsWith("/apps/installed/") || path?.startsWith("/v2/apps/installed/"),
       },
     ],
   },
@@ -561,9 +531,7 @@ const navigation: NavigationItemType[] = [
     name: "Routing Forms",
     href: "/apps/routing-forms/forms",
     icon: FileText,
-    isCurrent: ({ router }) => {
-      return router.asPath.startsWith("/apps/routing-forms/");
-    },
+    isCurrent: ({ pathname }) => pathname?.startsWith("/apps/routing-forms/"),
   },
   {
     name: "workflows",
@@ -599,7 +567,7 @@ const { desktopNavigationItems, mobileNavigationBottomItems, mobileNavigationMor
 
 const Navigation = () => {
   return (
-    <nav className="mt-2 flex-1 md:px-2 lg:mt-6 lg:px-0">
+    <nav className="mt-2 flex-1 md:px-2 lg:mt-4 lg:px-0">
       {desktopNavigationItems.map((item) => (
         <NavigationItem key={item.name} item={item} />
       ))}
@@ -611,21 +579,13 @@ const Navigation = () => {
 };
 
 function useShouldDisplayNavigationItem(item: NavigationItemType) {
-  const { status } = useSession();
-  const { data: routingForms } = trpc.viewer.appById.useQuery(
-    { appId: "routing-forms" },
-    {
-      enabled: status === "authenticated" && requiredCredentialNavigationItems.includes(item.name),
-      trpc: {},
-    }
-  );
   const flags = useFlagMap();
   if (isKeyInObject(item.name, flags)) return flags[item.name];
-  return !requiredCredentialNavigationItems.includes(item.name) || routingForms?.isInstalled;
+  return true;
 }
 
-const defaultIsCurrent: NavigationItemType["isCurrent"] = ({ isChild, item, router }) => {
-  return isChild ? item.href === router.asPath : item.href ? router.asPath.startsWith(item.href) : false;
+const defaultIsCurrent: NavigationItemType["isCurrent"] = ({ isChild, item, pathname }) => {
+  return isChild ? item.href === pathname : item.href ? pathname?.startsWith(item.href) : false;
 };
 
 const NavigationItem: React.FC<{
@@ -635,9 +595,9 @@ const NavigationItem: React.FC<{
 }> = (props) => {
   const { item, isChild } = props;
   const { t, isLocaleReady } = useLocale();
-  const router = useRouter();
+  const pathname = usePathname();
   const isCurrent: NavigationItemType["isCurrent"] = item.isCurrent || defaultIsCurrent;
-  const current = isCurrent({ isChild: !!isChild, item, router });
+  const current = isCurrent({ isChild: !!isChild, item, pathname });
   const shouldDisplayNavigationItem = useShouldDisplayNavigationItem(props.item);
 
   if (!shouldDisplayNavigationItem) return null;
@@ -649,9 +609,10 @@ const NavigationItem: React.FC<{
           href={item.href}
           aria-label={t(item.name)}
           className={classNames(
-            "[&[aria-current='page']]:bg-emphasis  text-default group flex items-center rounded-md px-3 py-2 text-sm font-medium",
+            "text-default group flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
+            item.child ? `[&[aria-current='page']]:bg-transparent` : `[&[aria-current='page']]:bg-emphasis`,
             isChild
-              ? `[&[aria-current='page']]:text-emphasis hidden h-8 pl-16 lg:flex lg:pl-11 [&[aria-current='page']]:bg-transparent ${
+              ? `[&[aria-current='page']]:text-emphasis [&[aria-current='page']]:bg-emphasis hidden h-8 pl-16 lg:flex lg:pl-11 ${
                   props.index === 0 ? "mt-0" : "mt-px"
                 }`
               : "[&[aria-current='page']]:text-emphasis mt-0.5 text-sm",
@@ -660,7 +621,7 @@ const NavigationItem: React.FC<{
           aria-current={current ? "page" : undefined}>
           {item.icon && (
             <item.icon
-              className="mr-2 h-4 w-4 flex-shrink-0 ltr:mr-2 rtl:ml-2 [&[aria-current='page']]:text-inherit"
+              className="mr-2 h-4 w-4 flex-shrink-0 rtl:ml-2 md:ltr:mx-auto lg:ltr:mr-2 [&[aria-current='page']]:text-inherit"
               aria-hidden="true"
               aria-current={current ? "page" : undefined}
             />
@@ -676,7 +637,7 @@ const NavigationItem: React.FC<{
         </Link>
       </Tooltip>
       {item.child &&
-        isCurrent({ router, isChild, item }) &&
+        isCurrent({ pathname, isChild, item }) &&
         item.child.map((item, index) => <NavigationItem index={index} key={item.name} item={item} isChild />)}
     </Fragment>
   );
@@ -713,10 +674,10 @@ const MobileNavigationItem: React.FC<{
   isChild?: boolean;
 }> = (props) => {
   const { item, isChild } = props;
-  const router = useRouter();
+  const pathname = usePathname();
   const { t, isLocaleReady } = useLocale();
   const isCurrent: NavigationItemType["isCurrent"] = item.isCurrent || defaultIsCurrent;
-  const current = isCurrent({ isChild: !!isChild, item, router });
+  const current = isCurrent({ isChild: !!isChild, item, pathname });
   const shouldDisplayNavigationItem = useShouldDisplayNavigationItem(props.item);
 
   if (!shouldDisplayNavigationItem) return null;
@@ -773,24 +734,24 @@ type SideBarProps = {
 
 function SideBarContainer({ bannersHeight }: SideBarContainerProps) {
   const { status, data } = useSession();
-  const router = useRouter();
 
   // Make sure that Sidebar is rendered optimistically so that a refresh of pages when logged in have SideBar from the beginning.
   // This improves the experience of refresh on app store pages(when logged in) which are SSG.
   // Though when logged out, app store pages would temporarily show SideBar until session status is confirmed.
   if (status !== "loading" && status !== "authenticated") return null;
-  if (router.route.startsWith("/v2/settings/")) return null;
   return <SideBar bannersHeight={bannersHeight} user={data?.user} />;
 }
 
-const getOrganizationUrl = (slug: string) =>
-  `${slug}.${process.env.NEXT_PUBLIC_WEBSITE_URL?.replace?.(/http(s*):\/\//, "")}`;
-
 function SideBar({ bannersHeight, user }: SideBarProps) {
   const { t, isLocaleReady } = useLocale();
-  const router = useRouter();
-  const orgBranding = useOrgBrandingValues();
-  const publicPageUrl = orgBranding?.slug ? getOrganizationUrl(orgBranding?.slug) : "";
+  const orgBranding = useOrgBranding();
+
+  const publicPageUrl = useMemo(() => {
+    if (!user?.org?.id) return `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user?.username}`;
+    const publicPageUrl = orgBranding?.slug ? getOrgFullDomain(orgBranding.slug) : "";
+    return publicPageUrl;
+  }, [orgBranding?.slug, user?.username, user?.org?.id]);
+
   const bottomNavItems: NavigationItemType[] = [
     ...(user?.username
       ? [
@@ -802,9 +763,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
           },
           {
             name: "view_public_page",
-            href: !!user?.organizationId
-              ? publicPageUrl
-              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`,
+            href: publicPageUrl,
             icon: ExternalLink,
             target: "__blank",
           },
@@ -813,11 +772,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
             href: "",
             onClick: (e: { preventDefault: () => void }) => {
               e.preventDefault();
-              navigator.clipboard.writeText(
-                !!user?.organizationId
-                  ? publicPageUrl
-                  : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/${user.username}`
-              );
+              navigator.clipboard.writeText(publicPageUrl);
               showToast(t("link_copied"), "success");
             },
             icon: Copy,
@@ -826,9 +781,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
       : []),
     {
       name: "settings",
-      href: user?.organizationId
-        ? `/settings/teams/${user.organizationId}/profile`
-        : "/settings/my-account/profile",
+      href: user?.org ? `/settings/organizations/profile` : "/settings/my-account/profile",
       icon: Settings,
     },
   ];
@@ -840,21 +793,17 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
         <div className="flex h-full flex-col justify-between py-3 lg:pt-4">
           <header className="items-center justify-between md:hidden lg:flex">
             {orgBranding ? (
-              <Link href="/event-types" className="px-1.5">
-                {orgBranding ? (
-                  <div className="flex items-center gap-2 font-medium">
-                    <Avatar
-                      alt={`${orgBranding.name} logo`}
-                      imageSrc={getPlaceholderAvatar(orgBranding.logo, orgBranding.name)}
-                      size="xsm"
-                    />
-                    <p className="text line-clamp-1 text-sm">
-                      <span>{orgBranding.name}</span>
-                    </p>
-                  </div>
-                ) : (
-                  <Logo small />
-                )}
+              <Link href="/settings/organizations/profile" className="px-1.5">
+                <div className="flex items-center gap-2 font-medium">
+                  <Avatar
+                    alt={`${orgBranding.name} logo`}
+                    imageSrc={`${orgBranding.fullDomain}/org/${orgBranding.slug}/avatar.png`}
+                    size="xsm"
+                  />
+                  <p className="text line-clamp-1 text-sm">
+                    <span>{orgBranding.name}</span>
+                  </p>
+                </div>
               </Link>
             ) : (
               <div data-testid="user-dropdown-trigger">
@@ -903,34 +852,25 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
           {bottomNavItems.map(({ icon: Icon, ...item }, index) => (
             <Tooltip side="right" content={t(item.name)} className="lg:hidden" key={item.name}>
               <ButtonOrLink
+                id={item.name}
                 href={item.href || undefined}
                 aria-label={t(item.name)}
                 target={item.target}
                 className={classNames(
                   "text-left",
-                  "[&[aria-current='page']]:bg-emphasis  text-default justify-right group flex items-center rounded-md px-3 py-2 text-sm font-medium",
+                  "[&[aria-current='page']]:bg-emphasis  text-default justify-right group flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
                   "[&[aria-current='page']]:text-emphasis mt-0.5 w-full text-sm",
                   isLocaleReady ? "hover:bg-emphasis hover:text-emphasis" : "",
                   index === 0 && "mt-3"
                 )}
-                aria-current={
-                  defaultIsCurrent && defaultIsCurrent({ item: { href: item.href }, router })
-                    ? "page"
-                    : undefined
-                }
                 onClick={item.onClick}>
                 {!!Icon && (
                   <Icon
                     className={classNames(
                       "h-4 w-4 flex-shrink-0 [&[aria-current='page']]:text-inherit",
-                      "mx-auto md:ltr:mr-2 md:rtl:ml-2"
+                      "me-3 md:mx-auto lg:ltr:mr-2 lg:rtl:ml-2"
                     )}
                     aria-hidden="true"
-                    aria-current={
-                      defaultIsCurrent && defaultIsCurrent({ item: { href: item.href }, router })
-                        ? "page"
-                        : undefined
-                    }
                   />
                 )}
                 {isLocaleReady ? (
@@ -943,7 +883,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
               </ButtonOrLink>
             </Tooltip>
           ))}
-          <Credits />
+          {!IS_VISUAL_REGRESSION_TESTING && <Credits />}
         </div>
       </aside>
     </div>
@@ -956,62 +896,65 @@ export function ShellMain(props: LayoutProps) {
 
   return (
     <>
-      <div
-        className={classNames(
-          "flex items-center md:mb-6 md:mt-0",
-          props.smallHeading ? "lg:mb-7" : "lg:mb-8",
-          props.hideHeadingOnMobile ? "mb-0" : "mb-6"
-        )}>
-        {!!props.backPath && (
-          <Button
-            variant="icon"
-            size="sm"
-            color="minimal"
-            onClick={() =>
-              typeof props.backPath === "string" ? router.push(props.backPath as string) : router.back()
-            }
-            StartIcon={ArrowLeft}
-            aria-label="Go Back"
-            className="rounded-md ltr:mr-2 rtl:ml-2"
-          />
-        )}
-        {props.heading && (
-          <header
-            className={classNames(props.large && "py-8", "flex w-full max-w-full items-center truncate")}>
-            {props.HeadingLeftIcon && <div className="ltr:mr-4">{props.HeadingLeftIcon}</div>}
-            <div className={classNames("w-full truncate ltr:mr-4 rtl:ml-4 md:block", props.headerClassName)}>
-              {props.heading && (
-                <h3
-                  className={classNames(
-                    "font-cal max-w-28 sm:max-w-72 md:max-w-80 text-emphasis inline truncate text-lg font-semibold tracking-wide sm:text-xl md:block xl:max-w-full",
-                    props.smallHeading ? "text-base" : "text-xl",
-                    props.hideHeadingOnMobile && "hidden"
-                  )}>
-                  {!isLocaleReady ? <SkeletonText invisible /> : props.heading}
-                </h3>
-              )}
-              {props.subtitle && (
-                <p className="text-default hidden text-sm md:block">
-                  {!isLocaleReady ? <SkeletonText invisible /> : props.subtitle}
-                </p>
-              )}
-            </div>
-            {props.beforeCTAactions}
-            {props.CTA && (
+      {(props.heading || !!props.backPath) && (
+        <div
+          className={classNames(
+            "flex items-center md:mb-6 md:mt-0",
+            props.smallHeading ? "lg:mb-7" : "lg:mb-8",
+            props.hideHeadingOnMobile ? "mb-0" : "mb-6"
+          )}>
+          {!!props.backPath && (
+            <Button
+              variant="icon"
+              size="sm"
+              color="minimal"
+              onClick={() =>
+                typeof props.backPath === "string" ? router.push(props.backPath as string) : router.back()
+              }
+              StartIcon={ArrowLeft}
+              aria-label="Go Back"
+              className="rounded-md ltr:mr-2 rtl:ml-2"
+            />
+          )}
+          {props.heading && (
+            <header
+              className={classNames(props.large && "py-8", "flex w-full max-w-full items-center truncate")}>
+              {props.HeadingLeftIcon && <div className="ltr:mr-4">{props.HeadingLeftIcon}</div>}
               <div
-                className={classNames(
-                  props.backPath
-                    ? "relative"
-                    : "pwa:bottom-24 fixed bottom-20 z-40 ltr:right-4 rtl:left-4 md:z-auto md:ltr:right-0 md:rtl:left-0",
-                  "flex-shrink-0 md:relative md:bottom-auto md:right-auto"
-                )}>
-                {props.CTA}
+                className={classNames("w-full truncate ltr:mr-4 rtl:ml-4 md:block", props.headerClassName)}>
+                {props.heading && (
+                  <h3
+                    className={classNames(
+                      "font-cal max-w-28 sm:max-w-72 md:max-w-80 text-emphasis inline truncate text-lg font-semibold tracking-wide sm:text-xl md:block xl:max-w-full",
+                      props.smallHeading ? "text-base" : "text-xl",
+                      props.hideHeadingOnMobile && "hidden"
+                    )}>
+                    {!isLocaleReady ? <SkeletonText invisible /> : props.heading}
+                  </h3>
+                )}
+                {props.subtitle && (
+                  <p className="text-default hidden text-sm md:block">
+                    {!isLocaleReady ? <SkeletonText invisible /> : props.subtitle}
+                  </p>
+                )}
               </div>
-            )}
-            {props.actions && props.actions}
-          </header>
-        )}
-      </div>
+              {props.beforeCTAactions}
+              {props.CTA && (
+                <div
+                  className={classNames(
+                    props.backPath
+                      ? "relative"
+                      : "pwa:bottom-24 fixed bottom-20 z-40 ltr:right-4 rtl:left-4 md:z-auto md:ltr:right-0 md:rtl:left-0",
+                    "flex-shrink-0 md:relative md:bottom-auto md:right-auto"
+                  )}>
+                  {isLocaleReady && props.CTA}
+                </div>
+              )}
+              {props.actions && props.actions}
+            </header>
+          )}
+        </div>
+      )}
       {props.afterHeading && <>{props.afterHeading}</>}
       <div className={classNames(props.flexChildrenContainer && "flex flex-1 flex-col")}>
         {props.children}
@@ -1029,7 +972,7 @@ function MainContainer({
     <main className="bg-default relative z-0 flex-1 focus:outline-none">
       {/* show top navigation for md and smaller (tablet and phones) */}
       {TopNavContainerProp}
-      <div className="max-w-full px-4 py-4 md:py-8 lg:px-12">
+      <div className="max-w-full px-2 py-4 md:py-12 lg:px-6">
         <ErrorBoundary>
           {!props.withoutMain ? <ShellMain {...props}>{props.children}</ShellMain> : props.children}
         </ErrorBoundary>

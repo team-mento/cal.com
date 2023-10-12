@@ -1,11 +1,11 @@
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { HttpError } from "@calcom/lib/http-error";
 import { trpc } from "@calcom/trpc/react";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
-import { showToast, EmptyScreen as ClassicEmptyScreen, CreateButtonWithTeamsList } from "@calcom/ui";
-import { Smartphone, Mail, Zap } from "@calcom/ui/components/icon";
+import { CreateButtonWithTeamsList, EmptyScreen as ClassicEmptyScreen, showToast } from "@calcom/ui";
+import { Mail, Smartphone, Zap } from "@calcom/ui/components/icon";
 
 type WorkflowExampleType = {
   Icon: SVGComponent;
@@ -37,7 +37,7 @@ export default function EmptyScreen(props: { isFilteredView: boolean }) {
 
   const createMutation = trpc.viewer.workflows.create.useMutation({
     onSuccess: async ({ workflow }) => {
-      await router.replace("/workflows/" + workflow.id);
+      await router.replace(`/workflows/${workflow.id}`);
     },
     onError: (err) => {
       if (err instanceof HttpError) {

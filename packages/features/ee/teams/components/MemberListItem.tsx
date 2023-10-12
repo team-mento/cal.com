@@ -1,8 +1,9 @@
 import classNames from "classnames";
+import { SendIcon } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 
-import { WEBAPP_URL } from "@calcom/lib/constants";
+import { useBookerUrl } from "@calcom/lib/hooks/useBookerUrl";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { MembershipRole } from "@calcom/prisma/enums";
 import { teamMetadataSchema } from "@calcom/prisma/zod-utils";
@@ -52,7 +53,7 @@ const checkIsOrg = (team: Props["team"]) => {
 };
 
 export default function MemberListItem(props: Props) {
-  const { t } = useLocale();
+  const { t, i18n } = useLocale();
 
   const utils = trpc.useContext();
   const [showChangeMemberRoleModal, setShowChangeMemberRoleModal] = useState(false);
@@ -69,6 +70,15 @@ export default function MemberListItem(props: Props) {
     },
     async onError(err) {
       showToast(err.message, "error");
+    },
+  });
+
+  const resendInvitationMutation = trpc.viewer.teams.resendInvitation.useMutation({
+    onSuccess: () => {
+      showToast(t("invitation_resent"), "success");
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
     },
   });
 
@@ -95,37 +105,54 @@ export default function MemberListItem(props: Props) {
     });
 
   const editMode =
-    (props.team.membership.role === MembershipRole.OWNER &&
+    (props.team.membership?.role === MembershipRole.OWNER &&
       (props.member.role !== MembershipRole.OWNER ||
         ownersInTeam() > 1 ||
         props.member.id !== currentUserId)) ||
-    (props.team.membership.role === MembershipRole.ADMIN && props.member.role !== MembershipRole.OWNER);
+    (props.team.membership?.role === MembershipRole.ADMIN && props.member.role !== MembershipRole.OWNER);
   const impersonationMode =
     editMode &&
     !props.member.disableImpersonation &&
     props.member.accepted &&
     process.env.NEXT_PUBLIC_TEAM_IMPERSONATION === "true";
+  const resendInvitation = editMode && !props.member.accepted;
 
-  const urlWithoutProtocol = WEBAPP_URL.replace(/^https?:\/\//, "");
-  const bookingLink = !!props.member.username && `${urlWithoutProtocol}/${props.member.username}`;
-
+  const bookerUrl = useBookerUrl();
+  const bookerUrlWithoutProtocol = bookerUrl.replace(/^https?:\/\//, "");
+  const bookingLink = !!props.member.username && `${bookerUrlWithoutProtocol}/${props.member.username}`;
+  const isAdmin = props.team && ["ADMIN", "OWNER"].includes(props.team.membership?.role);
+  const appList = props.member.connectedApps?.map(({ logo, name, externalId }) => {
+    return logo ? (
+      externalId ? (
+        <div className="ltr:mr-2 rtl:ml-2 ">
+          <Tooltip content={externalId}>
+            <img className="h-5 w-5" src={logo} alt={`${name} logo`} />
+          </Tooltip>
+        </div>
+      ) : (
+        <div className="ltr:mr-2 rtl:ml-2">
+          <img className="h-5 w-5" src={logo} alt={`${name} logo`} />
+        </div>
+      )
+    ) : null;
+  });
   return (
     <li className="divide-subtle divide-y px-5">
       <div className="my-4 flex justify-between">
-        <div className="flex w-full flex-col justify-between sm:flex-row">
+        <div className="flex w-full flex-col justify-between truncate sm:flex-row">
           <div className="flex">
             <Avatar
               size="sm"
-              imageSrc={WEBAPP_URL + "/" + props.member.username + "/avatar.png"}
+              imageSrc={`${bookerUrl}/${props.member.username}/avatar.png`}
               alt={name || ""}
               className="h-10 w-10 rounded-full"
             />
 
             <div className="ms-3 inline-block">
               <div className="mb-1 flex">
-                <span className="text-default mr-1 text-sm font-bold leading-4">{name}</span>
-
+                <span className="text-default mr-2 text-sm font-bold leading-4">{name}</span>
                 {!props.member.accepted && <TeamPill color="orange" text={t("pending")} />}
+                {isAdmin && props.member.accepted && appList}
                 {props.member.role && <TeamRole role={props.member.role} />}
               </div>
               <div className="text-default flex items-center">
@@ -137,7 +164,7 @@ export default function MemberListItem(props: Props) {
                     <span className="text-default mx-2 block">•</span>
                     <a
                       target="_blank"
-                      href={`${WEBAPP_URL}/${props.member.username}`}
+                      href={`${bookerUrl}/${props.member.username}`}
                       className="text-default block text-sm">
                       {bookingLink}
                     </a>
@@ -147,7 +174,7 @@ export default function MemberListItem(props: Props) {
             </div>
           </div>
         </div>
-        {props.team.membership.accepted && (
+        {props.team.membership?.accepted && (
           <div className="flex items-center justify-center">
             <ButtonGroup combined containerProps={{ className: "border-default hidden md:flex" }}>
               {/* TODO: bring availability back. right now its ugly and broken
@@ -168,7 +195,7 @@ export default function MemberListItem(props: Props) {
               <Tooltip content={t("view_public_page")}>
                 <Button
                   target="_blank"
-                  href={"/" + props.member.username}
+                  href={`${bookerUrl}/${props.member.username}`}
                   color="secondary"
                   className={classNames(!editMode ? "rounded-r-md" : "")}
                   variant="icon"
@@ -208,6 +235,22 @@ export default function MemberListItem(props: Props) {
                         <DropdownMenuSeparator />
                       </>
                     )}
+                    {resendInvitation && (
+                      <DropdownMenuItem>
+                        <DropdownItem
+                          type="button"
+                          onClick={() => {
+                            resendInvitationMutation.mutate({
+                              teamId: props.team?.id,
+                              email: props.member.email,
+                              language: i18n.language,
+                            });
+                          }}
+                          StartIcon={SendIcon}>
+                          {t("resend_invitation")}
+                        </DropdownItem>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem>
                       <DropdownItem
                         type="button"
@@ -230,7 +273,7 @@ export default function MemberListItem(props: Props) {
                   <DropdownMenuItem className="outline-none">
                     <DropdownItem
                       disabled={!props.member.accepted}
-                      href={!props.member.accepted ? undefined : "/" + props.member.username}
+                      href={!props.member.accepted ? undefined : `/${props.member.username}`}
                       target="_blank"
                       type="button"
                       StartIcon={ExternalLink}>
@@ -266,7 +309,7 @@ export default function MemberListItem(props: Props) {
       </div>
 
       {editMode && (
-        <Dialog open={showDeleteModal} onOpenChange={() => setShowDeleteModal(false)}>
+        <Dialog open={showDeleteModal} onOpenChange={() => setShowDeleteModal((prev) => !prev)}>
           <ConfirmationDialogContent
             variety="danger"
             title={t("remove_member")}
@@ -289,7 +332,7 @@ export default function MemberListItem(props: Props) {
                 });
                 setShowImpersonateModal(false);
               }}>
-              <DialogFooter>
+              <DialogFooter showDivider className="mt-8">
                 <DialogClose color="secondary">{t("cancel")}</DialogClose>
                 <Button color="primary" type="submit">
                   {t("impersonate")}

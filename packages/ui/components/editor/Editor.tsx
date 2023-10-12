@@ -68,7 +68,7 @@ export const Editor = (props: TextEditorProps) => {
   return (
     <div className="editor rounded-md">
       <LexicalComposer initialConfig={{ ...editorConfig, editable }}>
-        <div className="editor-container rounded-md p-0">
+        <div className="editor-container hover:border-emphasis focus-within:ring-brand-default rounded-md p-0 focus-within:ring-2">
           <ToolbarPlugin
             getText={props.getText}
             setText={props.setText}
@@ -90,7 +90,11 @@ export const Editor = (props: TextEditorProps) => {
                   className="editor-input"
                 />
               }
-              placeholder={<div className="text-muted -mt-11 p-3 text-sm">{props.placeholder || ""}</div>}
+              placeholder={
+                props?.placeholder ? (
+                  <div className="text-muted -mt-11 p-3 text-sm">{props.placeholder}</div>
+                ) : null
+              }
               ErrorBoundary={LexicalErrorBoundary}
             />
             <ListPlugin />

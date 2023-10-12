@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
 import { getCsrfToken, signIn } from "next-auth/react";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -19,7 +19,7 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import prisma from "@calcom/prisma";
 import { Button } from "@calcom/ui";
-import { ArrowLeft } from "@calcom/ui/components/icon";
+import { ArrowLeft, Lock } from "@calcom/ui/components/icon";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
 import type { WithNonceProps } from "@lib/withNonce";
@@ -36,6 +36,7 @@ interface LoginValues {
   email: string;
   password: string;
   totpCode: string;
+  backupCode: string;
   csrfToken: string;
 }
 export default function Login({
@@ -46,6 +47,7 @@ export default function Login({
   samlProductID,
   totpEmail,
 }: inferSSRProps<typeof _getServerSideProps> & WithNonceProps) {
+  const searchParams = useSearchParams();
   const { t } = useLocale();
   const router = useRouter();
   const formSchema = z
@@ -54,19 +56,20 @@ export default function Login({
         .string()
         .min(1, `${t("error_required_field")}`)
         .email(`${t("enter_valid_email")}`),
-      password: z.string().min(1, `${t("error_required_field")}`),
+      password: !!totpEmail ? z.literal("") : z.string().min(1, `${t("error_required_field")}`),
     })
     // Passthrough other fields like totpCode
     .passthrough();
   const methods = useForm<LoginValues>({ resolver: zodResolver(formSchema) });
   const { register, formState } = methods;
   const [twoFactorRequired, setTwoFactorRequired] = useState(!!totpEmail || false);
+  const [twoFactorLostAccess, setTwoFactorLostAccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const errorMessages: { [key: string]: string } = {
     // [ErrorCode.SecondFactorRequired]: t("2fa_enabled_instructions"),
     // Don't leak information about whether an email is registered or not
-    [ErrorCode.IncorrectUsernamePassword]: t("incorrect_username_password"),
+    [ErrorCode.IncorrectEmailPassword]: t("incorrect_email_password"),
     [ErrorCode.IncorrectTwoFactorCode]: `${t("incorrect_2fa_code")} ${t("please_try_again")}`,
     [ErrorCode.InternalServerError]: `${t("something_went_wrong")} ${t("please_try_again_and_contact_us")}`,
     [ErrorCode.ThirdPartyIdentityProviderEnabled]: t("account_created_with_identity_provider"),
@@ -74,7 +77,7 @@ export default function Login({
 
   const telemetry = useTelemetry();
 
-  let callbackUrl = typeof router.query?.callbackUrl === "string" ? router.query.callbackUrl : "";
+  let callbackUrl = searchParams.get("callbackUrl") || "";
 
   if (/"\//.test(callbackUrl)) callbackUrl = callbackUrl.substring(1);
 
@@ -95,15 +98,35 @@ export default function Login({
   // );
 
   const TwoFactorFooter = (
-    <Button
-      onClick={() => {
-        setTwoFactorRequired(false);
-        methods.setValue("totpCode", "");
-      }}
-      StartIcon={ArrowLeft}
-      color="minimal">
-      {t("go_back")}
-    </Button>
+    <>
+      <Button
+        onClick={() => {
+          if (twoFactorLostAccess) {
+            setTwoFactorLostAccess(false);
+            methods.setValue("backupCode", "");
+          } else {
+            setTwoFactorRequired(false);
+            methods.setValue("totpCode", "");
+          }
+          setErrorMessage(null);
+        }}
+        StartIcon={ArrowLeft}
+        color="minimal">
+        {t("go_back")}
+      </Button>
+      {!twoFactorLostAccess ? (
+        <Button
+          onClick={() => {
+            setTwoFactorLostAccess(true);
+            setErrorMessage(null);
+            methods.setValue("totpCode", "");
+          }}
+          StartIcon={Lock}
+          color="minimal">
+          {t("lost_access")}
+        </Button>
+      ) : null}
+    </>
   );
 
   const ExternalTotpFooter = (
@@ -127,8 +150,9 @@ export default function Login({
     if (!res) setErrorMessage(errorMessages[ErrorCode.InternalServerError]);
     // we're logged in! let's do a hard refresh to the desired url
     else if (!res.error) router.push(callbackUrl);
-    // reveal two factor input if required
     else if (res.error === ErrorCode.SecondFactorRequired) setTwoFactorRequired(true);
+    else if (res.error === ErrorCode.IncorrectBackupCode) setErrorMessage(t("incorrect_backup_code"));
+    else if (res.error === ErrorCode.MissingBackupCodes) setErrorMessage(t("missing_backup_codes"));
     // fallback if error not found
     else setErrorMessage(errorMessages[res.error] || t("something_went_wrong"));
   };
@@ -191,7 +215,7 @@ export default function Login({
           {/*      </div>*/}
           {/*    </div>*/}
 
-          {/*    {twoFactorRequired && <TwoFactor center />}*/}
+          {/* {twoFactorRequired ? !twoFactorLostAccess ? <TwoFactor center /> : <BackupCode center /> : null} */}
 
           {/*    {errorMessage && <Alert severity="error" title={errorMessage} />}*/}
           {/*    <Button*/}

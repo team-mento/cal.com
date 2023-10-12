@@ -1,4 +1,4 @@
-import type { Booking, Payment, Prisma, PaymentOption } from "@prisma/client";
+import type { Booking, Payment, PaymentOption, Prisma } from "@prisma/client";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import z from "zod";
@@ -12,9 +12,9 @@ import type { IAbstractPaymentService } from "@calcom/types/PaymentService";
 import { paymentOptionEnum } from "../zod";
 import { createPaymentLink } from "./client";
 import { retrieveOrCreateStripeCustomerByEmail } from "./customer";
-import type { StripeSetupIntentData, StripePaymentData } from "./server";
+import type { StripePaymentData, StripeSetupIntentData } from "./server";
 
-const stripeCredentialKeysSchema = z.object({
+export const stripeCredentialKeysSchema = z.object({
   stripe_user_id: z.string(),
   default_currency: z.string(),
   stripe_publishable_key: z.string(),
@@ -28,22 +28,38 @@ const stripeAppKeysSchema = z.object({
 
 export class PaymentService implements IAbstractPaymentService {
   private stripe: Stripe;
-  private credentials: z.infer<typeof stripeCredentialKeysSchema>;
+  private credentials: z.infer<typeof stripeCredentialKeysSchema> | null;
 
   constructor(credentials: { key: Prisma.JsonValue }) {
-    // parse credentials key
-    this.credentials = stripeCredentialKeysSchema.parse(credentials.key);
+    const keyParsing = stripeCredentialKeysSchema.safeParse(credentials.key);
+    if (keyParsing.success) {
+      this.credentials = keyParsing.data;
+    } else {
+      this.credentials = null;
+    }
     this.stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY || "", {
       apiVersion: "2020-08-27",
     });
+  }
+
+  private async getPayment(where: Prisma.PaymentWhereInput) {
+    const payment = await prisma.payment.findFirst({ where });
+    if (!payment) throw new Error("Payment not found");
+    if (!payment.externalId) throw new Error("Payment externalId not found");
+    return { ...payment, externalId: payment.externalId };
   }
 
   /* This method is for creating charges at the time of booking */
   async create(
     payment: Pick<Prisma.PaymentUncheckedCreateInput, "amount" | "currency">,
     bookingId: Booking["id"],
+    userId: Booking["userId"],
+    username: string | null,
+    bookerName: string,
     bookerEmail: string,
-    paymentOption: PaymentOption
+    paymentOption: PaymentOption,
+    eventTitle?: string,
+    bookingTitle?: string
   ) {
     try {
       // Ensure that the payment service can support the passed payment option
@@ -51,19 +67,9 @@ export class PaymentService implements IAbstractPaymentService {
         throw new Error("Payment option is not compatible with create method");
       }
 
-      // Load stripe keys
-      const stripeAppKeys = await prisma?.app.findFirst({
-        select: {
-          keys: true,
-        },
-        where: {
-          slug: "stripe",
-        },
-      });
-
-      // Parse keys with zod
-      const { payment_fee_fixed, payment_fee_percentage } = stripeAppKeysSchema.parse(stripeAppKeys?.keys);
-      const paymentFee = Math.round(payment.amount * payment_fee_percentage + payment_fee_fixed);
+      if (!this.credentials) {
+        throw new Error("Stripe credentials not found");
+      }
 
       const customer = await retrieveOrCreateStripeCustomerByEmail(
         bookerEmail,
@@ -72,16 +78,26 @@ export class PaymentService implements IAbstractPaymentService {
 
       const params: Stripe.PaymentIntentCreateParams = {
         amount: payment.amount,
-        currency: this.credentials.default_currency,
+        currency: payment.currency,
         payment_method_types: ["card"],
         customer: customer.id,
+        metadata: {
+          identifier: "cal.com",
+          bookingId,
+          calAccountId: userId,
+          calUsername: username,
+          bookerName,
+          bookerEmail,
+          eventTitle: eventTitle || "",
+          bookingTitle: bookingTitle || "",
+        },
       };
 
       const paymentIntent = await this.stripe.paymentIntents.create(params, {
         stripeAccount: this.credentials.stripe_user_id,
       });
 
-      const paymentData = await prisma?.payment.create({
+      const paymentData = await prisma.payment.create({
         data: {
           uid: uuidv4(),
           app: {
@@ -97,12 +113,11 @@ export class PaymentService implements IAbstractPaymentService {
           amount: payment.amount,
           currency: payment.currency,
           externalId: paymentIntent.id,
-
           data: Object.assign({}, paymentIntent, {
             stripe_publishable_key: this.credentials.stripe_publishable_key,
             stripeAccount: this.credentials.stripe_user_id,
           }) as unknown as Prisma.InputJsonValue,
-          fee: paymentFee,
+          fee: 0,
           refunded: false,
           success: false,
           paymentOption: paymentOption || "ON_BOOKING",
@@ -125,24 +140,14 @@ export class PaymentService implements IAbstractPaymentService {
     paymentOption: PaymentOption
   ): Promise<Payment> {
     try {
+      if (!this.credentials) {
+        throw new Error("Stripe credentials not found");
+      }
+
       // Ensure that the payment service can support the passed payment option
       if (paymentOptionEnum.parse(paymentOption) !== "HOLD") {
         throw new Error("Payment option is not compatible with create method");
       }
-
-      // Load stripe keys
-      const stripeAppKeys = await prisma?.app.findFirst({
-        select: {
-          keys: true,
-        },
-        where: {
-          slug: "stripe",
-        },
-      });
-
-      // Parse keys with zod
-      const { payment_fee_fixed, payment_fee_percentage } = stripeAppKeysSchema.parse(stripeAppKeys?.keys);
-      const paymentFee = Math.round(payment.amount * payment_fee_percentage + payment_fee_fixed);
 
       const customer = await retrieveOrCreateStripeCustomerByEmail(
         bookerEmail,
@@ -161,7 +166,7 @@ export class PaymentService implements IAbstractPaymentService {
         stripeAccount: this.credentials.stripe_user_id,
       });
 
-      const paymentData = await prisma?.payment.create({
+      const paymentData = await prisma.payment.create({
         data: {
           uid: uuidv4(),
           app: {
@@ -177,7 +182,6 @@ export class PaymentService implements IAbstractPaymentService {
           amount: payment.amount,
           currency: payment.currency,
           externalId: setupIntent.id,
-
           data: Object.assign(
             {},
             {
@@ -186,7 +190,7 @@ export class PaymentService implements IAbstractPaymentService {
               stripeAccount: this.credentials.stripe_user_id,
             }
           ) as unknown as Prisma.InputJsonValue,
-          fee: paymentFee,
+          fee: 0,
           refunded: false,
           success: false,
           paymentOption: paymentOption || "ON_BOOKING",
@@ -202,7 +206,11 @@ export class PaymentService implements IAbstractPaymentService {
 
   async chargeCard(payment: Payment, _bookingId?: Booking["id"]): Promise<Payment> {
     try {
-      const stripeAppKeys = await prisma?.app.findFirst({
+      if (!this.credentials) {
+        throw new Error("Stripe credentials not found");
+      }
+
+      const stripeAppKeys = await prisma.app.findFirst({
         select: {
           keys: true,
         },
@@ -280,17 +288,11 @@ export class PaymentService implements IAbstractPaymentService {
 
   async refund(paymentId: Payment["id"]): Promise<Payment> {
     try {
-      const payment = await prisma.payment.findFirst({
-        where: {
-          id: paymentId,
-          success: true,
-          refunded: false,
-        },
+      const payment = await this.getPayment({
+        id: paymentId,
+        success: true,
+        refunded: false,
       });
-      if (!payment) {
-        throw new Error("Payment not found");
-      }
-
       const refund = await this.stripe.refunds.create(
         {
           payment_intent: payment.externalId,
@@ -345,15 +347,9 @@ export class PaymentService implements IAbstractPaymentService {
 
   async deletePayment(paymentId: Payment["id"]): Promise<boolean> {
     try {
-      const payment = await prisma.payment.findFirst({
-        where: {
-          id: paymentId,
-        },
+      const payment = await this.getPayment({
+        id: paymentId,
       });
-
-      if (!payment) {
-        throw new Error("Payment not found");
-      }
       const stripeAccount = (payment.data as unknown as StripePaymentData).stripeAccount;
 
       if (!stripeAccount) {
@@ -384,5 +380,9 @@ export class PaymentService implements IAbstractPaymentService {
 
   getPaymentDetails(): Promise<Payment> {
     throw new Error("Method not implemented.");
+  }
+
+  isSetupAlready(): boolean {
+    return !!this.credentials;
   }
 }

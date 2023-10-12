@@ -1,27 +1,16 @@
-import { isValidPhoneNumber } from "libphonenumber-js";
 import z from "zod";
 
-import type { ALL_VIEWS } from "@calcom/features/form-builder/FormBuilderFieldsSchema";
+import type { ALL_VIEWS } from "@calcom/features/form-builder/schema";
+import { fieldTypesSchemaMap, dbReadResponseSchema } from "@calcom/features/form-builder/schema";
 import type { eventTypeBookingFields } from "@calcom/prisma/zod-utils";
-import { bookingResponses } from "@calcom/prisma/zod-utils";
+import { bookingResponses, emailSchemaRefinement } from "@calcom/prisma/zod-utils";
 
 type EventType = Parameters<typeof preprocess>[0]["eventType"];
 // eslint-disable-next-line @typescript-eslint/ban-types
 type View = ALL_VIEWS | (string & {});
 
-export const bookingResponse = z.union([
-  z.string(),
-  z.boolean(),
-  z.string().array(),
-  z.object({
-    optionValue: z.string(),
-    value: z.string(),
-  }),
-  // For variantsConfig case
-  z.record(z.string()),
-]);
-
-export const bookingResponsesDbSchema = z.record(bookingResponse);
+export const bookingResponse = dbReadResponseSchema;
+export const bookingResponsesDbSchema = z.record(dbReadResponseSchema);
 
 const catchAllSchema = bookingResponsesDbSchema;
 
@@ -82,6 +71,16 @@ function preprocess<T extends z.ZodType>({
           // If the field is not applicable in the current view, then we don't need to do any processing
           return;
         }
+        const fieldTypeSchema = fieldTypesSchemaMap[field.type as keyof typeof fieldTypesSchemaMap];
+        // TODO: Move all the schemas along with their respective types to fieldTypeSchema, that would make schemas shared across Routing Forms builder and Booking Question Formm builder
+        if (fieldTypeSchema) {
+          newResponses[field.name] = fieldTypeSchema.preprocess({
+            response: value,
+            isPartialSchema,
+            field,
+          });
+          return;
+        }
         if (field.type === "boolean") {
           // Turn a boolean in string to a real boolean
           newResponses[field.name] = value === "true" || value === true;
@@ -104,20 +103,27 @@ function preprocess<T extends z.ZodType>({
           newResponses[field.name] = value;
         }
       });
-      return newResponses;
+
+      return {
+        ...parsedResponses,
+        ...newResponses,
+      };
     },
-    schema.superRefine((responses, ctx) => {
+    schema.superRefine(async (responses, ctx) => {
       if (!eventType.bookingFields) {
         // if eventType has been deleted, we won't have bookingFields and thus we can't validate the responses.
         return;
       }
-      eventType.bookingFields.forEach((bookingField) => {
+      for (const bookingField of eventType.bookingFields) {
         const value = responses[bookingField.name];
         const stringSchema = z.string();
-        const emailSchema = isPartialSchema ? z.string() : z.string().email();
+        const emailSchema = isPartialSchema ? z.string() : z.string().refine(emailSchemaRefinement);
         const phoneSchema = isPartialSchema
           ? z.string()
-          : z.string().refine((val) => isValidPhoneNumber(val));
+          : z.string().refine(async (val) => {
+              const { isValidPhoneNumber } = await import("libphonenumber-js");
+              return isValidPhoneNumber(val);
+            });
         // Tag the message with the input name so that the message can be shown at appropriate place
         const m = (message: string) => `{${bookingField.name}}${message}`;
         const views = bookingField.views;
@@ -132,11 +138,13 @@ function preprocess<T extends z.ZodType>({
         const isRequired = hidden ? false : isFieldApplicableToCurrentView ? bookingField.required : false;
 
         if ((isPartialSchema || !isRequired) && value === undefined) {
-          return;
+          continue;
         }
 
-        if (isRequired && !isPartialSchema && !value)
+        if (isRequired && !isPartialSchema && !value) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: m(`error_required_field`) });
+          return;
+        }
 
         if (bookingField.type === "email") {
           // Email RegExp to validate if the input is a valid email
@@ -146,17 +154,36 @@ function preprocess<T extends z.ZodType>({
               message: m("email_validation_error"),
             });
           }
-          return;
+          continue;
+        }
+
+        const fieldTypeSchema = fieldTypesSchemaMap[bookingField.type as keyof typeof fieldTypesSchemaMap];
+
+        if (fieldTypeSchema) {
+          fieldTypeSchema.superRefine({
+            response: value,
+            ctx,
+            m,
+            field: bookingField,
+            isPartialSchema,
+          });
+          continue;
         }
 
         if (bookingField.type === "multiemail") {
           const emailsParsed = emailSchema.array().safeParse(value);
+
+          if (isRequired && (!value || value.length === 0)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: m(`error_required_field`) });
+            continue;
+          }
+
           if (!emailsParsed.success) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: m("email_validation_error"),
             });
-            return;
+            continue;
           }
 
           const emails = emailsParsed.data;
@@ -166,21 +193,21 @@ function preprocess<T extends z.ZodType>({
               return true;
             }
           });
-          return;
+          continue;
         }
 
         if (bookingField.type === "checkbox" || bookingField.type === "multiselect") {
           if (!stringSchema.array().safeParse(value).success) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("Invalid array of strings") });
           }
-          return;
+          continue;
         }
 
         if (bookingField.type === "phone") {
-          if (!phoneSchema.safeParse(value).success) {
+          if (!(await phoneSchema.safeParseAsync(value)).success) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("invalid_number") });
           }
-          return;
+          continue;
         }
 
         if (bookingField.type === "boolean") {
@@ -188,7 +215,7 @@ function preprocess<T extends z.ZodType>({
           if (!schema.safeParse(value).success) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("Invalid Boolean") });
           }
-          return;
+          continue;
         }
 
         if (bookingField.type === "radioInput") {
@@ -203,38 +230,42 @@ function preprocess<T extends z.ZodType>({
               !optionValue
             ) {
               ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("error_required_field") });
+              return;
             }
 
             if (optionValue) {
               // `typeOfOptionInput` can be any of the main types. So, we the same validations should run for `optionValue`
               if (typeOfOptionInput === "phone") {
-                if (!phoneSchema.safeParse(optionValue).success) {
+                if (!(await phoneSchema.safeParseAsync(optionValue)).success) {
                   ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("invalid_number") });
                 }
               }
             }
           }
-          return;
+          continue;
         }
 
-        if (
-          ["address", "text", "select", "name", "number", "radio", "textarea"].includes(bookingField.type)
-        ) {
+        // Use fieldTypeConfig.propsType to validate for propsType=="text" or propsType=="select" as in those cases, the response would be a string.
+        // If say we want to do special validation for 'address' that can be added to `fieldTypesSchemaMap`
+        if (["address", "text", "select", "number", "radio", "textarea"].includes(bookingField.type)) {
           const schema = stringSchema;
           if (!schema.safeParse(value).success) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("Invalid string") });
           }
-          return;
+          continue;
         }
 
-        throw new Error(`Can't parse unknown booking field type: ${bookingField.type}`);
-      });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Can't parse unknown booking field type: ${bookingField.type}`,
+        });
+      }
     })
   );
   if (isPartialSchema) {
     // Query Params can be completely invalid, try to preprocess as much of it in correct format but in worst case simply don't prefill instead of crashing
-    return preprocessed.catch(() => {
-      console.error("Failed to preprocess query params, prefilling will be skipped");
+    return preprocessed.catch(function (res?: { error?: unknown[] }) {
+      console.error("Failed to preprocess query params, prefilling will be skipped", res?.error);
       return {};
     });
   }

@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { useOrgBrandingValues } from "@calcom/features/ee/organizations/hooks";
-import { subdomainSuffix } from "@calcom/features/ee/organizations/lib/orgDomains";
+import { useOrgBranding } from "@calcom/features/ee/organizations/context/provider";
 import { useFlagMap } from "@calcom/features/flags/context/provider";
 import { classNames } from "@calcom/lib";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
@@ -83,7 +82,7 @@ export default function CreateEventTypeDialog({
   const { t } = useLocale();
   const router = useRouter();
   const [firstRender, setFirstRender] = useState(true);
-  const orgBranding = useOrgBrandingValues();
+  const orgBranding = useOrgBranding();
 
   const {
     data: { teamId, eventPage: pageSlug },
@@ -121,8 +120,8 @@ export default function CreateEventTypeDialog({
 
   const createMutation = trpc.viewer.eventTypes.create.useMutation({
     onSuccess: async ({ eventType }) => {
-      await router.replace("/event-types/" + eventType.id);
-      showToast(t("event_type_created_successfully", { eventTypeTitle: eventType.title }), "success");
+      await router.replace(`/event-types/${eventType.id}`);
+      showToast(t("event_type_created_successfully"), "success");
     },
     onError: (err) => {
       if (err instanceof HttpError) {
@@ -143,9 +142,7 @@ export default function CreateEventTypeDialog({
   });
 
   const flags = useFlagMap();
-  const urlPrefix = orgBranding
-    ? `${orgBranding.slug}.${subdomainSuffix()}`
-    : process.env.NEXT_PUBLIC_WEBSITE_URL;
+  const urlPrefix = orgBranding?.fullDomain ?? process.env.NEXT_PUBLIC_WEBSITE_URL;
 
   return (
     <Dialog
@@ -170,7 +167,7 @@ export default function CreateEventTypeDialog({
           handleSubmit={(values) => {
             createMutation.mutate(values);
           }}>
-          <div className="mt-3 space-y-6 pb-10">
+          <div className="mt-3 space-y-6 pb-11">
             {teamId && (
               <TextField
                 type="hidden"
@@ -241,7 +238,7 @@ export default function CreateEventTypeDialog({
                     required
                     min="10"
                     placeholder="15"
-                    label={t("length")}
+                    label={t("duration")}
                     className="pr-4"
                     {...register("length", { valueAsNumber: true })}
                     addOnSuffix={t("minutes")}
