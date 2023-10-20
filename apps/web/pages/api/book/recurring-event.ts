@@ -8,6 +8,11 @@ import type { AppsStatus } from "@calcom/types/Calendar";
 
 // @TODO: Didn't look at the contents of this function in order to not break old booking page.
 
+// MENTO update to be able to run on vercel
+export const config = {
+  maxDuration: 300,
+};
+
 async function handler(req: NextApiRequest & { userId?: number }, res: NextApiResponse) {
   const data: RecurringBookingCreateBody[] = req.body;
   const session = await getServerSession({ req, res });
