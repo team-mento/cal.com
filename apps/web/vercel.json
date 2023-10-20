@@ -6,7 +6,7 @@
     }
   ],
   "functions": {
-    "api/book/recurring-event": {
+    "pages/api/book/*": {
       "maxDuration": 300
     }
   }
