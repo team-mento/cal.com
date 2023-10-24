@@ -2434,7 +2434,7 @@ async function handler(
 
   const metadata = videoCallUrl
     ? {
-        videoCallUrl: getVideoCallUrlFromCalEvent(evt),
+        videoCallUrl: getVideoCallUrlFromCalEvent(evt) || videoCallUrl,
       }
     : undefined;
   const webhookData = {
