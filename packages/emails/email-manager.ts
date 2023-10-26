@@ -101,7 +101,7 @@ export const sendScheduledEmails = async (
   await Promise.all(emailsToSend);
 };
 
-export const sendRescheduledEmails = async (calEvent: CalendarEvent, attendeeEmailDisabled?: boolean) => {
+export const sendRescheduledEmails = async (calEvent: CalendarEvent) => {
   const emailsToSend: Promise<unknown>[] = [];
 
   emailsToSend.push(sendEmail(() => new OrganizerRescheduledEmail({ calEvent })));
@@ -112,13 +112,11 @@ export const sendRescheduledEmails = async (calEvent: CalendarEvent, attendeeEma
     }
   }
 
-  if (!attendeeEmailDisabled) {
-    emailsToSend.push(
-      ...calEvent.attendees.map((attendee) => {
-        return sendEmail(() => new AttendeeRescheduledEmail(calEvent, attendee));
-      })
-    );
-  }
+  emailsToSend.push(
+    ...calEvent.attendees.map((attendee) => {
+      return sendEmail(() => new AttendeeRescheduledEmail(calEvent, attendee));
+    })
+  );
 
   await Promise.all(emailsToSend);
 };
@@ -194,8 +192,7 @@ export const sendDeclinedEmails = async (calEvent: CalendarEvent) => {
 
 export const sendCancelledEmails = async (
   calEvent: CalendarEvent,
-  eventNameObject: Pick<EventNameObjectType, "eventName">,
-  attendeeEmailDisabled?: boolean
+  eventNameObject: Pick<EventNameObjectType, "eventName">
 ) => {
   const emailsToSend: Promise<unknown>[] = [];
 
@@ -207,30 +204,28 @@ export const sendCancelledEmails = async (
     }
   }
 
-  if (!attendeeEmailDisabled) {
-    emailsToSend.push(
-      ...calEvent.attendees.map((attendee) => {
-        return sendEmail(
-          () =>
-            new AttendeeCancelledEmail(
-              {
-                ...calEvent,
-                title: getEventName({
-                  ...eventNameObject,
-                  t: attendee.language.translate,
-                  attendeeName: attendee.name,
-                  host: calEvent.organizer.name,
-                  eventType: calEvent.type,
-                  ...(calEvent.responses && { bookingFields: calEvent.responses }),
-                  ...(calEvent.location && { location: calEvent.location }),
-                }),
-              },
-              attendee
-            )
-        );
-      })
-    );
-  }
+  emailsToSend.push(
+    ...calEvent.attendees.map((attendee) => {
+      return sendEmail(
+        () =>
+          new AttendeeCancelledEmail(
+            {
+              ...calEvent,
+              title: getEventName({
+                ...eventNameObject,
+                t: attendee.language.translate,
+                attendeeName: attendee.name,
+                host: calEvent.organizer.name,
+                eventType: calEvent.type,
+                ...(calEvent.responses && { bookingFields: calEvent.responses }),
+                ...(calEvent.location && { location: calEvent.location }),
+              }),
+            },
+            attendee
+          )
+      );
+    })
+  );
 
   await Promise.all(emailsToSend);
 };
