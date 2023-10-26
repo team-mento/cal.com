@@ -349,7 +349,7 @@ export default class GoogleCalendarService implements Calendar {
         calendarId: selectedCalendar,
         eventId: uid,
         sendNotifications: false,
-        sendUpdates: "none",
+        sendUpdates: "externalOnly",
       });
       return event?.data;
     } catch (error) {
