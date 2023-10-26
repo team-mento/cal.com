@@ -8,10 +8,11 @@ export default class OrganizerLocationChangeEmail extends OrganizerScheduledEmai
     const toAddresses = [this.teamMember?.email || this.calEvent.organizer.email];
 
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-      },
+      // MENTO never send ical event, let google do it
+      // icalEvent: {
+      //   filename: "event.ics",
+      //   content: this.getiCalEventAsString(),
+      // },
       from: `${APP_NAME} <${this.getMailerOptions().from}>`,
       to: toAddresses.join(","),
       replyTo: [this.calEvent.organizer.email, ...this.calEvent.attendees.map(({ email }) => email)],
