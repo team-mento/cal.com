@@ -86,11 +86,12 @@ export default class AttendeeScheduledEmail extends BaseEmail {
     this.getiCalEventAsString();
 
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-        method: "REQUEST",
-      },
+      // MENTO: Never send ical, let google calendar do it
+      //icalEvent: {
+      //  filename: "event.ics",
+      //  content: this.getiCalEventAsString(),
+      //  method: "REQUEST",
+      //},
       to: `${this.attendee.name} <${this.attendee.email}>`,
       from: `${this.calEvent.organizer.name} <${this.getMailerOptions().from}>`,
       replyTo: [...this.calEvent.attendees.map(({ email }) => email), this.calEvent.organizer.email],

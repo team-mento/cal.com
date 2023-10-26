@@ -20,10 +20,11 @@ export default class AttendeeWasRequestedToRescheduleEmail extends OrganizerSche
     const toAddresses = [this.calEvent.attendees[0].email];
 
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-      },
+      // MENTO: Never send ical, let google calendar do it
+      //icalEvent: {
+      //  filename: "event.ics",
+      //  content: this.getiCalEventAsString(),
+      //},
       from: `${APP_NAME} <${this.getMailerOptions().from}>`,
       to: toAddresses.join(","),
       subject: `${this.t("requested_to_reschedule_subject_attendee", {
