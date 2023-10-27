@@ -26,6 +26,7 @@ import { deleteMeeting } from "@calcom/core/videoClient";
 import type { ConfigType, Dayjs } from "@calcom/dayjs";
 import dayjs from "@calcom/dayjs";
 import {
+  sendAttendeeRequestEmail,
   sendOrganizerRequestEmail,
   sendRescheduledEmails,
   sendRescheduledSeatEmail,
@@ -1528,14 +1529,11 @@ async function handler(
 
           if (noEmail !== true && (!requiresConfirmation || isOrganizerRescheduling)) {
             const copyEvent = cloneDeep(evt);
-            await sendRescheduledEmails(
-              {
-                ...copyEvent,
-                additionalNotes, // Resets back to the additionalNote input and not the override value
-                cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
-              },
-              true // MENTO always disable attendee emails
-            );
+            await sendRescheduledEmails({
+              ...copyEvent,
+              additionalNotes, // Resets back to the additionalNote input and not the override value
+              cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
+            });
           }
           const foundBooking = await findBookingQuery(newBooking.id);
 
@@ -1651,14 +1649,11 @@ async function handler(
 
           if (!requiresConfirmation || isOrganizerRescheduling) {
             // TODO send reschedule emails to attendees of the old booking
-            await sendRescheduledEmails(
-              {
-                ...copyEvent,
-                additionalNotes, // Resets back to the additionalNote input and not the override value
-                cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
-              },
-              true // MENTO always disable attendee emails
-            );
+            await sendRescheduledEmails({
+              ...copyEvent,
+              additionalNotes, // Resets back to the additionalNote input and not the override value
+              cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
+            });
           }
 
           // Update the old booking with the cancelled status
@@ -2283,15 +2278,12 @@ async function handler(
       }
       if (noEmail !== true && (!requiresConfirmation || isOrganizerRescheduling)) {
         const copyEvent = cloneDeep(evt);
-        await sendRescheduledEmails(
-          {
-            ...copyEvent,
-            additionalInformation: metadata,
-            additionalNotes, // Resets back to the additionalNote input and not the override value
-            cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
-          },
-          true // MENTO always disable attendee emails
-        );
+        await sendRescheduledEmails({
+          ...copyEvent,
+          additionalInformation: metadata,
+          additionalNotes, // Resets back to the additionalNote input and not the override value
+          cancellationReason: `$RCH$${rescheduleReason ? rescheduleReason : ""}`, // Removable code prefix to differentiate cancellation from rescheduling for email
+        });
       }
     }
     // If it's not a reschedule, doesn't require confirmation and there's no price,
@@ -2417,8 +2409,7 @@ async function handler(
           },
           eventNameObject,
           isHostConfirmationEmailsDisabled,
-          // MENTO: Always disable sending emails to attendees
-          true
+          isAttendeeConfirmationEmailDisabled
         );
       }
     }
@@ -2438,8 +2429,7 @@ async function handler(
       })
     );
     await sendOrganizerRequestEmail({ ...evt, additionalNotes });
-    // MENTO don't send emails to anyone but organizers
-    //await sendAttendeeRequestEmail({ ...evt, additionalNotes }, attendeesList[0]);
+    await sendAttendeeRequestEmail({ ...evt, additionalNotes }, attendeesList[0]);
   }
 
   const metadata = videoCallUrl

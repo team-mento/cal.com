@@ -220,7 +220,7 @@ export default class GoogleCalendarService implements Calendar {
         calendarId: selectedCalendar,
         requestBody: payload,
         conferenceDataVersion: 1,
-        sendUpdates: "all",
+        sendUpdates: "externalOnly",
       });
 
       if (event && event.data.id && event.data.hangoutLink) {
@@ -294,7 +294,7 @@ export default class GoogleCalendarService implements Calendar {
         calendarId: selectedCalendar,
         eventId: uid,
         sendNotifications: true,
-        sendUpdates: "all",
+        sendUpdates: "externalOnly",
         requestBody: payload,
         conferenceDataVersion: 1,
       });
@@ -349,7 +349,7 @@ export default class GoogleCalendarService implements Calendar {
         calendarId: selectedCalendar,
         eventId: uid,
         sendNotifications: false,
-        sendUpdates: "all",
+        sendUpdates: "externalOnly",
       });
       return event?.data;
     } catch (error) {

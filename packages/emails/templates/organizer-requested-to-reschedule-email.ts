@@ -19,10 +19,11 @@ export default class OrganizerRequestedToRescheduleEmail extends OrganizerSchedu
     const toAddresses = [this.calEvent.organizer.email];
 
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-      },
+      // MENTO: Never send ical event. Let google do it
+      // icalEvent: {
+      //   filename: "event.ics",
+      //   content: this.getiCalEventAsString(),
+      // },
       from: `${APP_NAME} <${this.getMailerOptions().from}>`,
       to: toAddresses.join(","),
       subject: `${this.t("rescheduled_event_type_subject", {

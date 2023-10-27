@@ -649,8 +649,7 @@ async function handler(req: CustomRequest) {
     }
 
     // TODO: if emails fail try to requeue them
-    // MENTO always disable emails to attendees
-    await sendCancelledEmails(evt, { eventName: bookingToDelete?.eventType?.eventName }, true);
+    await sendCancelledEmails(evt, { eventName: bookingToDelete?.eventType?.eventName });
   } catch (error) {
     console.error("Error deleting event", error);
   }
