@@ -161,16 +161,29 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         params["username"] = updatedUser?.username;
-      }
 
-      await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: "Bearer " + process.env.NEXT_PUBLIC_CALENDAR_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      });
+        // Old mento API
+        // TODO: Once unified backend is deployed across the board, rip this out
+        await fetch(`${process.env.NEXT_PUBLIC_MENTO_COACH_URL}/api/calendar/coach?email=${user?.email}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_CALENDAR_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(params),
+        });
+        if (process.env?.NEXT_PUBLIC_MENTO_URL) {
+          // New mento API
+          await fetch(`${process.env.NEXT_PUBLIC_MENTO_URL}/coach_profiles/calendar?email=${user?.email}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_CALENDAR_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(params),
+          });
+        }
+      }
     } catch (e) {
       console.error(e);
     }
