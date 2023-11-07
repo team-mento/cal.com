@@ -8,10 +8,11 @@ export default class OrganizerRescheduledEmail extends OrganizerScheduledEmail {
     const toAddresses = [this.teamMember?.email || this.calEvent.organizer.email];
 
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-      },
+      // MENTO: Never send ical event. Let google do it
+      //icalEvent: {
+      //  filename: "event.ics",
+      //  content: this.getiCalEventAsString(),
+      //},
       from: `${APP_NAME} <${this.getMailerOptions().from}>`,
       to: toAddresses.join(","),
       subject: `${this.calEvent.organizer.language.translate("event_type_has_been_rescheduled_on_time_date", {

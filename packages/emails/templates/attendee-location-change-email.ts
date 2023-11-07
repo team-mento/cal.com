@@ -4,10 +4,11 @@ import AttendeeScheduledEmail from "./attendee-scheduled-email";
 export default class AttendeeLocationChangeEmail extends AttendeeScheduledEmail {
   protected getNodeMailerPayload(): Record<string, unknown> {
     return {
-      icalEvent: {
-        filename: "event.ics",
-        content: this.getiCalEventAsString(),
-      },
+      // MENTO: Never send ical, let google calendar do it
+      //icalEvent: {
+      //  filename: "event.ics",
+      //  content: this.getiCalEventAsString(),
+      //},
       to: `${this.attendee.name} <${this.attendee.email}>`,
       from: `${this.calEvent.organizer.name} <${this.getMailerOptions().from}>`,
       replyTo: this.calEvent.organizer.email,
