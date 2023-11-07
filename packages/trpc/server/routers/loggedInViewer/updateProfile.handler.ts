@@ -136,7 +136,7 @@ export const updateProfileHandler = async ({ ctx, input }: UpdateProfileOptions)
         });
         if (process.env?.NEXT_PUBLIC_MENTO_URL) {
           // New mento API
-          await fetch(`${process.env.NEXT_PUBLIC_MENTO_URL}/coach_profiles/calendar?email=${user?.email}`, {
+          await fetch(`${process.env.NEXT_PUBLIC_MENTO_URL}/coach_profiles/hook?email=${user?.email}`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${process.env.NEXT_PUBLIC_CALENDAR_KEY}`,
