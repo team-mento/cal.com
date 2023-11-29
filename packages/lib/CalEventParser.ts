@@ -177,6 +177,15 @@ export const getRescheduleLink = (calEvent: CalendarEvent): string => {
   return `${calEvent.bookerUrl ?? WEBAPP_URL}/reschedule/${seatUid ? seatUid : Uid}`;
 };
 
+const getMentoRedirectLink = (calEvent: CalendarEvent, action: string) => {
+  const Uid = getUid(calEvent);
+  return `${process.env.NEXT_PUBLIC_MENTO_WEB_URL}/sessions/external/${Uid}/${action}`;
+};
+
+const getGrowthPlanLink = (calEvent: CalendarEvent) => getMentoRedirectLink(calEvent, "growth");
+
+const getSessionViewLink = (calEvent: CalendarEvent) => getMentoRedirectLink(calEvent, "view");
+
 export const getRichDescription = (calEvent: CalendarEvent, t_?: TFunction /*, attendee?: Person*/) => {
   const appUrl = "https://app.mento.co";
   const cancelationPolicyURL =
@@ -186,6 +195,12 @@ export const getRichDescription = (calEvent: CalendarEvent, t_?: TFunction /*, a
 ${getCancellationReason(calEvent)}
 
 🎥 <a href="${getLocation(calEvent)}" target="_blank">Join the session with Google Meet</a>
+
+🗻 Get ready: <a href="${getGrowthPlanLink(
+    calEvent
+  )}" target="_blank">Review your Growth Plan</a> or <a href="${getSessionViewLink(
+    calEvent
+  )}" target="_blank">add a topic</a> you'd like to discuss.
 
 📆 <a href="${getRescheduleLink(calEvent)}" target="_blank">Reschedule</a> or <a href="${getCancelLink(
     calEvent
