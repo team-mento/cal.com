@@ -89,6 +89,8 @@ export default function CreateEventTypeDialog({
   const form = useForm<z.infer<typeof createEventTypeInput>>({
     defaultValues: {
       length: 15,
+      afterEventBuffer: 0,
+      minimumBookingNotice: 0,
     },
     resolver: zodResolver(createEventTypeInput),
   });
