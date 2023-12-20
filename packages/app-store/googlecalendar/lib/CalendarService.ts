@@ -344,7 +344,7 @@ export default class GoogleCalendarService implements Calendar {
         : Promise.resolve(selectedCalendarIds)
       )
         .then((calsIds) => {
-          console.log(`Fetching freebusy for calendars ${calsIds.join(",")}`);
+          this.log.error(`Fetching freebusy for calendars ${calsIds.join(",")}`);
           calendar.freebusy.query(
             {
               requestBody: {
@@ -360,11 +360,11 @@ export default class GoogleCalendarService implements Calendar {
               try {
                 Object.keys(apires.data.calendars).forEach((c) => {
                   const busy = apires.data.calendars[c].busy || [];
-                  console.log(`events for ${c}:`);
-                  console.log(busy.map((b) => `${b.start}:${b.end}`).join(" -- "));
+                  this.log.error(`events for ${c}:`);
+                  this.log.error(busy.map((b) => `${b.start}:${b.end}`).join(" -- "));
                 });
               } catch (ex) {
-                console.log("error in tracking", ex);
+                this.log.error("error in tracking", ex);
               }
               const result = Object.values(apires.data.calendars).reduce((c, i) => {
                 i.busy?.forEach((busyTime) => {
