@@ -359,7 +359,7 @@ export default class GoogleCalendarService implements Calendar {
               if (!apires?.data.calendars) return resolve([]);
               try {
                 Object.keys(apires.data.calendars).forEach((c) => {
-                  const busy = apires.data.calendars[c].busy || [];
+                  const busy = (apires?.data?.calendars && apires.data.calendars[c].busy) || [];
                   this.log.error(`events for ${c}:`);
                   this.log.error(busy.map((b) => `${b.start}:${b.end}`).join(" -- "));
                 });
