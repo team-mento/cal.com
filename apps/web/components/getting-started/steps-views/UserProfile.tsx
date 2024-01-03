@@ -8,6 +8,7 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { md } from "@calcom/lib/markdownIt";
 import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import turndown from "@calcom/lib/turndownService";
+import { PeriodType } from "@calcom/prisma/enums";
 import { trpc } from "@calcom/trpc/react";
 import { Button, Editor, ImageUploader, Label, showToast } from "@calcom/ui";
 import { ArrowRight } from "@calcom/ui/components/icon";
@@ -127,6 +128,8 @@ const UserProfile = () => {
       afterEventBuffer: 15,
       minimumBookingNotice: 1440,
       slotInterval: 30,
+      periodType: PeriodType.ROLLING,
+      periodDays: 10,
     },
   ];
 
