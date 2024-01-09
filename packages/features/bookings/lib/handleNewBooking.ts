@@ -1922,6 +1922,7 @@ async function handler(
         : undefined,
       metadata: { ...metadata, ...reqBody.metadata },
       eventTypeId,
+      slug: eventTypeSlug,
       status: "ACCEPTED",
       smsReminderNumber: booking?.smsReminderNumber || undefined,
     };
