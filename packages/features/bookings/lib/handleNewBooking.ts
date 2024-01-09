@@ -1219,6 +1219,7 @@ async function handler(
     hideCalendarNotes: eventType.hideCalendarNotes,
     requiresConfirmation: requiresConfirmation ?? false,
     eventTypeId: eventType.id,
+    slug: eventTypeSlug,
     // if seats are not enabled we should default true
     seatsShowAttendees: eventType.seatsPerTimeSlot ? eventType.seatsShowAttendees : true,
     seatsPerTimeSlot: eventType.seatsPerTimeSlot,
@@ -1922,7 +1923,6 @@ async function handler(
         : undefined,
       metadata: { ...metadata, ...reqBody.metadata },
       eventTypeId,
-      slug: eventTypeSlug,
       status: "ACCEPTED",
       smsReminderNumber: booking?.smsReminderNumber || undefined,
     };

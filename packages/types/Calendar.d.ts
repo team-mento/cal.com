@@ -177,6 +177,7 @@ export interface CalendarEvent {
   recurringEventId?: string | null;
   recurringEvent?: RecurringEvent | null;
   eventTypeId?: number | null;
+  slug?: string | null; // MENTO add slug because we use it for a lot of things
   appsStatus?: AppsStatus[];
   seatsShowAttendees?: boolean | null;
   seatsShowAvailabilityCount?: boolean | null;
