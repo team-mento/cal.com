@@ -11,6 +11,7 @@ export type EventTypeInfo = {
   eventTitle?: string | null;
   eventDescription?: string | null;
   requiresConfirmation?: boolean | null;
+  slug?: string | null;
   price?: number | null;
   currency?: string | null;
   length?: number | null;
