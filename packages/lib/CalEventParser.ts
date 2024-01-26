@@ -160,27 +160,15 @@ export const getManageLink = (calEvent: CalendarEvent, t: TFunction) => {
   )}?changes=true`;
 };
 
-export const getCancelLink = (calEvent: CalendarEvent): string => {
-  // const cancelLink = new URL((calEvent.bookerUrl ?? WEBAPP_URL) + `/booking/${getUid(calEvent)}`);
-  // cancelLink.searchParams.append("cancel", "true");
-  // cancelLink.searchParams.append("allRemainingBookings", String(!!calEvent.recurringEvent));
-  // const seatReferenceUid = getSeatReferenceId(calEvent);
-  // if (seatReferenceUid) cancelLink.searchParams.append("seatReferenceUid", seatReferenceUid);
-  // return cancelLink.toString();
-  return `${WEBAPP_URL}/booking/${getUid(calEvent)}?cancel=true`;
-};
-
-export const getRescheduleLink = (calEvent: CalendarEvent): string => {
-  const Uid = getUid(calEvent);
-  const seatUid = getSeatReferenceId(calEvent);
-
-  return `${calEvent.bookerUrl ?? WEBAPP_URL}/reschedule/${seatUid ? seatUid : Uid}`;
-};
-
 const getMentoRedirectLink = (calEvent: CalendarEvent, action: string) => {
   const Uid = getUid(calEvent);
   return `${process.env.NEXT_PUBLIC_MENTO_WEB_URL}/sessions/external/${Uid}/${action}`;
 };
+
+export const getCancelLink = (calEvent: CalendarEvent): string => getMentoRedirectLink(calEvent, "cancel");
+
+export const getRescheduleLink = (calEvent: CalendarEvent): string =>
+  getMentoRedirectLink(calEvent, "reschedule");
 
 const getGrowthPlanLink = (calEvent: CalendarEvent) => getMentoRedirectLink(calEvent, "growth");
 
