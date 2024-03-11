@@ -69,6 +69,11 @@ jobs:
           token: ${{ secrets.DO_TOKEN }}
       - name: Registry login
         run: doctl registry login
+      - name: Tag and push image to dev
+        if: github.ref_name == 'develop'
+        run: |
+          docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:dev
+          docker push registry.digitalocean.com/mento/docker_calcom:dev
       - name: Tag and push image to stage
         if: github.ref_name == 'develop'
         run: |
