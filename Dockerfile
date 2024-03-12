@@ -25,6 +25,7 @@ COPY package.json yarn.lock .yarnrc.yml playwright.config.ts turbo.json git-init
 COPY .yarn ./.yarn
 COPY apps/web ./apps/web
 COPY packages ./packages
+COPY tests ./tests
 
 RUN yarn config set httpTimeout 1200000 && \
      turbo prune --scope=@calcom/web --docker && \
