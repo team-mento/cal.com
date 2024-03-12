@@ -1,4 +1,4 @@
-name: deploy-to-digital-ocean-dev
+name: deploy-to-digital-ocean-staging
 
 on:
   push:
@@ -8,7 +8,8 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    environment: dev
+    # this is stage, but it was named develop on gh for some reason and can't be modified
+    environment: develop
     steps:
       - uses: actions/checkout@v3
       - name: Make envfile
@@ -68,7 +69,7 @@ jobs:
           token: ${{ secrets.DO_TOKEN }}
       - name: Registry login
         run: doctl registry login
-      - name: Tag and push image to dev
+      - name: Tag and push image to stage
         run: |
-          docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:dev
-          docker push registry.digitalocean.com/mento/docker_calcom:dev
+          docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:stage
+          docker push registry.digitalocean.com/mento/docker_calcom:stage
