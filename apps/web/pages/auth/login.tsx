@@ -1,7 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
-import { signIn } from "next-auth/react";
+import {
+  /*getCsrfToken*/
+  signIn,
+} from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useState } from "react";
