@@ -23,5 +23,7 @@ To be able to run the app on your machine, do the following:
 
 3. Run `yarn dev`
 4. Wait 2 billion years poor pages to load initially as cal compiles them on the fly on this mode.
-5. For integrations with Google calendar you can read the README section titles **Integrations** to not repeat them here
+5. Make sure you open http://localhost:3003 not using https as the browser will complain since it is not secure.
+6. Sign in with you google account.
+6. For integrations with Google calendar you can read the README section titles **Integrations** to not repeat them here
 
