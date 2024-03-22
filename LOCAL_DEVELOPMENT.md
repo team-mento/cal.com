@@ -25,5 +25,24 @@ To be able to run the app on your machine, do the following:
 4. Wait 2 billion years poor pages to load initially as cal compiles them on the fly on this mode.
 5. Make sure you open http://localhost:3003 not using https as the browser will complain since it is not secure.
 6. Sign in with you google account.
-6. For integrations with Google calendar you can read the README section titles **Integrations** to not repeat them here
+6. For integrations with Google calendar you can read the README section titles **Integrations** to not repeat them here.
+
+From the readme just for clarity:
+
+#### _Adding google calendar to Cal.com App Store_
+
+After adding Google credentials, you can now Google Calendar App to the app store.
+You can repopulate the App store by running
+
+```
+cd packages/prisma
+yarn seed-app-store
+```
+
+You will need to complete a few more steps to activate Google Calendar App.
+Make sure to complete section "Obtaining the Google API Credentials". After that do the
+following
+
+1. Add extra redirect URL `<Cal.com URL>/api/auth/callback/google`
+1. Under 'OAuth consent screen', click "PUBLISH APP"
 
