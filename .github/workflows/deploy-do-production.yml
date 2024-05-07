@@ -1,15 +1,14 @@
-name: ci
+name: deploy-to-digital-ocean-production
 
 on:
   push:
     branches:
-      - 'develop'
       - 'release'
 
 jobs:
   docker:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+    environment: release
     steps:
       - uses: actions/checkout@v3
       - name: Make envfile
@@ -69,13 +68,8 @@ jobs:
           token: ${{ secrets.DO_TOKEN }}
       - name: Registry login
         run: doctl registry login
-      - name: Tag and push image to stage
-        if: github.ref_name == 'develop'
-        run: |
-          docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:stage
-          docker push registry.digitalocean.com/mento/docker_calcom:stage
       - name: Tag and push image to prod
-        if: github.ref_name == 'release'
+        if: github.ref_name == 'release' # extra if just to be extra safe for prod
         run: |
           docker tag docker_calcom registry.digitalocean.com/mento/docker_calcom:latest
           docker push registry.digitalocean.com/mento/docker_calcom:latest
