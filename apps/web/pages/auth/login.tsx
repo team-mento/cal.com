@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
-import { getCsrfToken, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import type { CSSProperties } from "react";
 import { useState } from "react";
@@ -39,7 +39,6 @@ interface LoginValues {
   csrfToken: string;
 }
 export default function Login({
-  csrfToken,
   isGoogleLoginEnabled,
   isSAMLLoginEnabled,
   samlTenantID,
@@ -299,7 +298,6 @@ const _getServerSideProps = async function getServerSideProps(context: GetServer
   }
   return {
     props: {
-      csrfToken: await getCsrfToken(context),
       trpcState: ssr.dehydrate(),
       isGoogleLoginEnabled: IS_GOOGLE_LOGIN_ENABLED,
       isSAMLLoginEnabled,
