@@ -838,6 +838,13 @@ async function handler(
     return guestArray;
   }, [] as typeof invitee);
 
+  guests.push({
+    email: "scheduling@mento.co",
+    name: "",
+    timeZone: reqBody.timeZone,
+    language: { translate: tGuests, locale: "en" },
+  });
+
   const seed = `${organizerUser.username}:${dayjs(reqBody.start).utc().format()}:${new Date().getTime()}`;
   const uid = translator.fromUUID(uuidv5(seed, uuidv5.URL));
 
