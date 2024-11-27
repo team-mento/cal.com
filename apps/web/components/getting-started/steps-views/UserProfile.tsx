@@ -114,7 +114,7 @@ const UserProfile = (props: IUserProfileProps) => {
       eventName: "{ATTENDEE} & {HOST} | Mento Bi-Weekly Coaching",
       description: "Choose a time that works for you every two weeks for 45 minutes.",
       locations: [{ type: "integrations:google:meet" }],
-      recurringEvent: { freq: 2, count: 16, interval: 2 },
+      recurringEvent: { freq: 2, count: 20, interval: 2 },
       length: 45,
       hidden: false,
       afterEventBuffer: 15,
