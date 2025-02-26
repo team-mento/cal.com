@@ -132,21 +132,23 @@ const isWithinAvailableHours = (
     inviteeTimeZone: string;
   }
 ) => {
-  const timeSlotStart = dayjs(timeSlot.start).utc();
-  const timeSlotEnd = dayjs(timeSlot.end).utc();
-  const organizerDSTDiff =
-    dayjs().tz(organizerTimeZone).utcOffset() - timeSlotStart.tz(organizerTimeZone).utcOffset();
-  const getTime = (slotTime: Dayjs, minutes: number) =>
-    slotTime.startOf("day").add(minutes + organizerDSTDiff, "minutes");
+  // MENTO remove faulty attempts to adjust by dst -- allows scheduling across the boundary,
+  // and google should adjust the calendar based on the coach (who is organizer)
+  const timeSlotStart = dayjs(timeSlot.start);
+  const timeSlotEnd = dayjs(timeSlot.end);
+
+  const getTime = (slotTime: Dayjs, minutes: number) => {
+    return slotTime.utc().startOf("day").add(minutes, "minutes");
+  };
 
   for (const workingHour of workingHours) {
     const startTime = getTime(timeSlotStart, workingHour.startTime);
     // workingHours function logic set 1439 minutes when user select the end of the day (11:59) in his schedule
     // so, we need to add a minute, to avoid, "No available user" error when the last available slot is selected.
     const endTime = getTime(timeSlotEnd, workingHour.endTime === 1439 ? 1440 : workingHour.endTime);
+
     if (
       workingHour.days.includes(timeSlotStart.day()) &&
-      // UTC mode, should be performant.
       timeSlotStart.isBetween(startTime, endTime, null, "[)") &&
       timeSlotEnd.isBetween(startTime, endTime, null, "(]")
     ) {
