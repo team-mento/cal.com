@@ -84,19 +84,6 @@ const UserProfile = (props: IUserProfileProps) => {
 
   const DEFAULT_EVENT_TYPES = [
     {
-      title: "Start Bi-Weekly Coaching",
-      slug: "bi-weekly-start-coaching-session",
-      eventName: "{ATTENDEE} & {HOST} | Mento Bi-Weekly Coaching",
-      description:
-        "Choose a time that works for you every two weeks. You'll get the first invite right-away and a complete schedule confirmed soon after.",
-      locations: [{ type: "integrations:google:meet" }],
-      length: 45,
-      hidden: true,
-      afterEventBuffer: 15,
-      minimumBookingNotice: 1440,
-      slotInterval: 30,
-    },
-    {
       title: "Single Coaching Session",
       slug: "single-coaching-session",
       eventName: "{ATTENDEE} & {HOST} | Mento Coaching",
