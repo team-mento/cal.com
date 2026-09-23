@@ -68,14 +68,21 @@ import { schemaQueryIdParseInt } from "~/lib/validations/shared/queryIdTransform
  *        description: User not found
  */
 async function handler(req: NextApiRequest) {
-  const { id, allRemainingBookings, cancellationReason } = schemaQueryIdParseInt
-    .merge(schemaBookingCancelParams.pick({ allRemainingBookings: true, cancellationReason: true }))
+  const { id, allRemainingBookings, cancellationReason, suppressNotifications } = schemaQueryIdParseInt
+    .merge(
+      schemaBookingCancelParams.pick({
+        allRemainingBookings: true,
+        cancellationReason: true,
+        suppressNotifications: true,
+      })
+    )
     .parse({
       ...req.query,
       allRemainingBookings: req.query.allRemainingBookings === "true",
+      suppressNotifications: req.query.suppressNotifications === "true",
     });
   // Normalizing for universal handler
-  req.body = { id, allRemainingBookings, cancellationReason };
+  req.body = { id, allRemainingBookings, cancellationReason, suppressNotifications };
   return await handleCancelBooking(req);
 }
 
