@@ -119,7 +119,7 @@ type CustomRequest = NextApiRequest & {
 };
 
 async function handler(req: CustomRequest) {
-  const { id, uid, allRemainingBookings, cancellationReason, seatReferenceUid } =
+  const { id, uid, allRemainingBookings, cancellationReason, seatReferenceUid, suppressNotifications } =
     schemaBookingCancelParams.parse(req.body);
   req.bookingToDelete = await getBookingToDelete(id, uid);
   const { bookingToDelete, userId } = req;
@@ -661,7 +661,13 @@ async function handler(req: CustomRequest) {
     }
 
     // TODO: if emails fail try to requeue them
-    await sendCancelledEmails(evt, { eventName: bookingToDelete?.eventType?.eventName });
+    // suppressNotifications is opt-in and used by the MEN-4698 calendar migration, which
+    // retires a coach's bookings in bulk. Every other effect of cancellation still runs:
+    // the Google event is deleted, scheduled jobs are cancelled, and workflow reminders are
+    // cleaned up. Only the attendee email is withheld.
+    if (!suppressNotifications) {
+      await sendCancelledEmails(evt, { eventName: bookingToDelete?.eventType?.eventName });
+    }
   } catch (error) {
     console.error("Error deleting event", error);
   }
