@@ -4,7 +4,7 @@ import handleCancelBooking from "@calcom/features/bookings/lib/handleCancelBooki
 import { defaultResponder } from "@calcom/lib/server";
 import { schemaBookingCancelParams } from "@calcom/prisma/zod-utils";
 
-import { schemaQueryIdParseInt } from "~/lib/validations/shared/queryIdTransformParseInt";
+import { schemaQueryIdParseInt } from "../../../../lib/validations/shared/queryIdTransformParseInt";
 
 /**
  * @swagger
@@ -67,7 +67,7 @@ import { schemaQueryIdParseInt } from "~/lib/validations/shared/queryIdTransform
  *       404:
  *        description: User not found
  */
-async function handler(req: NextApiRequest) {
+export async function handler(req: NextApiRequest) {
   const { id, allRemainingBookings, cancellationReason, suppressNotifications } = schemaQueryIdParseInt
     .merge(
       schemaBookingCancelParams.pick({

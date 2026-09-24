@@ -4,7 +4,8 @@ import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import handleCancelBooking from "@calcom/features/bookings/lib/handleCancelBooking";
 import { defaultResponder, defaultHandler } from "@calcom/lib/server";
 
-async function handler(req: NextApiRequest & { userId?: number }, res: NextApiResponse) {
+export async function handler(req: NextApiRequest & { userId?: number }, res: NextApiResponse) {
+  if (req.body) delete req.body.suppressNotifications;
   const session = await getServerSession({ req, res });
   /* To mimic API behavior and comply with types */
   req.userId = session?.user?.id || -1;

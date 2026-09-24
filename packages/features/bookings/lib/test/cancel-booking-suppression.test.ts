@@ -3,6 +3,7 @@ import prismaMock from "../../../../../tests/libs/__mocks__/prisma";
 import { describe, expect, it, vi } from "vitest";
 
 import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
+import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import {
   deleteScheduledEmailReminder,
   scheduleEmailReminder,
@@ -25,6 +26,9 @@ import { setupAndTeardown } from "../handleNewBooking/test/lib/setupAndTeardown"
 
 vi.mock("@calcom/features/webhooks/lib/scheduleTrigger", () => ({
   cancelScheduledJobs: vi.fn(),
+}));
+vi.mock("@calcom/features/auth/lib/getServerSession", () => ({
+  getServerSession: vi.fn(),
 }));
 vi.mock("@calcom/features/ee/workflows/lib/reminders/emailReminderManager", () => ({
   deleteScheduledEmailReminder: vi.fn(),
@@ -84,6 +88,37 @@ async function createSeatedCancellationScenario({
   });
 
   return { attendeeEmail, organizer };
+}
+
+async function createRouteCancellationScenario(bookingUid: string) {
+  const organizer = getOrganizer({
+    id: 101,
+    name: "Organizer",
+    email: "organizer@example.com",
+    schedules: [TestData.schedules.IstWorkHours],
+  });
+  const { dateString } = getDate({ dateIncrement: 1 });
+
+  await createBookingScenario(
+    getScenarioData({
+      organizer,
+      eventTypes: [{ id: 1, length: 45, users: [{ id: organizer.id }] }],
+      bookings: [
+        {
+          uid: bookingUid,
+          userId: organizer.id,
+          eventTypeId: 1,
+          status: BookingStatus.ACCEPTED,
+          startTime: `${dateString}T05:00:00.000Z`,
+          endTime: `${dateString}T05:45:00.000Z`,
+          attendees: [{ email: "attendee@example.com", name: "Attendee", timeZone: "UTC" }],
+        },
+      ],
+    })
+  );
+
+  const booking = await prismaMock.booking.findUniqueOrThrow({ where: { uid: bookingUid } });
+  return { booking, organizer };
 }
 
 describe("cancellation notification suppression schema", () => {
@@ -175,6 +210,37 @@ describe("handleCancelBooking notification suppression", () => {
       body: { uid: bookingUid, seatReferenceUid, suppressNotifications: true },
       userId: organizer.id,
     } as Parameters<typeof handleCancelBooking>[0]);
+
+    expect(emails.get()).toHaveLength(0);
+  });
+
+  test("public cancellation cannot suppress the organizer email", async ({ emails }) => {
+    const { handler: publicCancelHandler } = await import("../../../../../apps/web/pages/api/cancel");
+    vi.mocked(getServerSession).mockResolvedValue(null);
+    const bookingUid = "public-route-cancellation";
+    const { organizer } = await createRouteCancellationScenario(bookingUid);
+
+    await publicCancelHandler(
+      {
+        body: { uid: bookingUid, suppressNotifications: true },
+      } as Parameters<typeof publicCancelHandler>[0],
+      {} as Parameters<typeof publicCancelHandler>[1]
+    );
+
+    expect(emails.get().some((email) => email.to.includes(organizer.email))).toBe(true);
+  });
+
+  test("authenticated API cancellation can suppress notifications", async ({ emails }) => {
+    const { handler: authenticatedCancelHandler } = await import(
+      "../../../../../apps/api/pages/api/bookings/[id]/_delete"
+    );
+    const bookingUid = "authenticated-api-cancellation";
+    const { booking, organizer } = await createRouteCancellationScenario(bookingUid);
+
+    await authenticatedCancelHandler({
+      query: { id: String(booking.id), suppressNotifications: "true" },
+      userId: organizer.id,
+    } as Parameters<typeof authenticatedCancelHandler>[0]);
 
     expect(emails.get()).toHaveLength(0);
   });
