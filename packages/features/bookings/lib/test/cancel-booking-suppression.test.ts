@@ -3,9 +3,12 @@ import prismaMock from "../../../../../tests/libs/__mocks__/prisma";
 import { describe, expect, it, vi } from "vitest";
 
 import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
-import { deleteScheduledEmailReminder } from "@calcom/features/ee/workflows/lib/reminders/emailReminderManager";
+import {
+  deleteScheduledEmailReminder,
+  scheduleEmailReminder,
+} from "@calcom/features/ee/workflows/lib/reminders/emailReminderManager";
 import { cancelScheduledJobs } from "@calcom/features/webhooks/lib/scheduleTrigger";
-import { BookingStatus, WorkflowMethods } from "@calcom/prisma/enums";
+import { BookingStatus, WorkflowActions, WorkflowMethods, WorkflowTriggerEvents } from "@calcom/prisma/enums";
 import { schemaBookingCancelParams } from "@calcom/prisma/zod-utils";
 import { test } from "@calcom/web/test/fixtures/fixtures";
 import {
@@ -25,6 +28,7 @@ vi.mock("@calcom/features/webhooks/lib/scheduleTrigger", () => ({
 }));
 vi.mock("@calcom/features/ee/workflows/lib/reminders/emailReminderManager", () => ({
   deleteScheduledEmailReminder: vi.fn(),
+  scheduleEmailReminder: vi.fn(),
 }));
 
 describe("cancellation notification suppression schema", () => {
@@ -89,10 +93,13 @@ describe("handleCancelBooking notification suppression", () => {
     expect(emails.get().some((email) => email.to.includes(attendeeEmail))).toBe(true);
   });
 
-  test("suppresses cancellation emails without suppressing cancellation cleanup", async ({ emails }) => {
+  test("suppresses cancellation notifications without suppressing cancellation cleanup", async ({
+    emails,
+  }) => {
     const handleCancelBooking = (await import("../handleCancelBooking")).default;
     vi.mocked(cancelScheduledJobs).mockClear();
     vi.mocked(deleteScheduledEmailReminder).mockClear();
+    vi.mocked(scheduleEmailReminder).mockClear();
     const organizer = getOrganizer({
       id: 101,
       name: "Organizer",
@@ -148,6 +155,26 @@ describe("handleCancelBooking notification suppression", () => {
         scheduled: true,
       },
     });
+    const cancellationWorkflow = await prismaMock.workflow.create({
+      data: {
+        name: "Notify attendee when event is cancelled",
+        trigger: WorkflowTriggerEvents.EVENT_CANCELLED,
+        userId: organizer.id,
+      },
+    });
+    await prismaMock.workflowStep.create({
+      data: {
+        stepNumber: 1,
+        action: WorkflowActions.EMAIL_ATTENDEE,
+        workflowId: cancellationWorkflow.id,
+      },
+    });
+    await prismaMock.workflowsOnEventTypes.create({
+      data: {
+        workflowId: cancellationWorkflow.id,
+        eventTypeId: 1,
+      },
+    });
     const calendarMock = mockCalendar("googlecalendar");
 
     await handleCancelBooking({
@@ -165,6 +192,7 @@ describe("handleCancelBooking notification suppression", () => {
       expect.objectContaining({ uid: bookingUid, scheduledJobs: [scheduledJob] })
     );
     expect(deleteScheduledEmailReminder).toHaveBeenCalledWith(reminderId, reminderReferenceId);
+    expect(scheduleEmailReminder).not.toHaveBeenCalled();
     expect(emails.get()).toHaveLength(0);
   });
 });

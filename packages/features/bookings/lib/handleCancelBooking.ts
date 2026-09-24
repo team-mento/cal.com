@@ -301,7 +301,7 @@ async function handler(req: CustomRequest) {
   await Promise.all(promises);
 
   //Workflows - schedule reminders
-  if (bookingToDelete.eventType?.workflows) {
+  if (!suppressNotifications && bookingToDelete.eventType?.workflows) {
     await sendCancelledReminders({
       workflows: bookingToDelete.eventType?.workflows,
       smsReminderNumber: bookingToDelete.smsReminderNumber,
@@ -664,7 +664,7 @@ async function handler(req: CustomRequest) {
     // suppressNotifications is opt-in and used by the MEN-4698 calendar migration, which
     // retires a coach's bookings in bulk. Every other effect of cancellation still runs:
     // the Google event is deleted, scheduled jobs are cancelled, and workflow reminders are
-    // cleaned up. Only the attendee email is withheld.
+    // cleaned up. Only cancellation notification dispatches are withheld.
     if (!suppressNotifications) {
       await sendCancelledEmails(evt, { eventName: bookingToDelete?.eventType?.eventName });
     }
@@ -689,7 +689,7 @@ async function handleSeatedEventCancellation(
     eventTypeInfo: EventTypeInfo;
   }
 ) {
-  const { seatReferenceUid } = schemaBookingCancelParams.parse(req.body);
+  const { seatReferenceUid, suppressNotifications } = schemaBookingCancelParams.parse(req.body);
   const { webhooks, evt, eventTypeInfo } = dataForWebhooks;
   if (!seatReferenceUid) return;
   const bookingToDelete = req.bookingToDelete;
@@ -762,12 +762,14 @@ async function handleSeatedEventCancellation(
       // as integrations was already updated
     }
 
-    const tAttendees = await getTranslation(attendee.locale ?? "en", "common");
+    if (!suppressNotifications) {
+      const tAttendees = await getTranslation(attendee.locale ?? "en", "common");
 
-    await sendCancelledSeatEmails(evt, {
-      ...attendee,
-      language: { translate: tAttendees, locale: attendee.locale ?? "en" },
-    });
+      await sendCancelledSeatEmails(evt, {
+        ...attendee,
+        language: { translate: tAttendees, locale: attendee.locale ?? "en" },
+      });
+    }
   }
 
   evt.attendees = attendee
