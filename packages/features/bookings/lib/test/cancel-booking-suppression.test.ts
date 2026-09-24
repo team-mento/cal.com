@@ -1,9 +1,34 @@
-import { describe, expect, it } from "vitest";
+import prismaMock from "../../../../../tests/libs/__mocks__/prisma";
 
+import { describe, expect, it, vi } from "vitest";
+
+import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
+import { deleteScheduledEmailReminder } from "@calcom/features/ee/workflows/lib/reminders/emailReminderManager";
+import { cancelScheduledJobs } from "@calcom/features/webhooks/lib/scheduleTrigger";
+import { BookingStatus, WorkflowMethods } from "@calcom/prisma/enums";
 import { schemaBookingCancelParams } from "@calcom/prisma/zod-utils";
+import { test } from "@calcom/web/test/fixtures/fixtures";
+import {
+  createBookingScenario,
+  getDate,
+  getGoogleCalendarCredential,
+  getOrganizer,
+  getScenarioData,
+  mockCalendar,
+  TestData,
+} from "@calcom/web/test/utils/bookingScenario/bookingScenario";
 
-describe("cancellation notification suppression", () => {
-  it("schemaBookingCancelParams accepts suppressNotifications", () => {
+import { setupAndTeardown } from "../handleNewBooking/test/lib/setupAndTeardown";
+
+vi.mock("@calcom/features/webhooks/lib/scheduleTrigger", () => ({
+  cancelScheduledJobs: vi.fn(),
+}));
+vi.mock("@calcom/features/ee/workflows/lib/reminders/emailReminderManager", () => ({
+  deleteScheduledEmailReminder: vi.fn(),
+}));
+
+describe("cancellation notification suppression schema", () => {
+  it("accepts suppressNotifications", () => {
     const parsed = schemaBookingCancelParams.parse({
       uid: "abc123",
       suppressNotifications: true,
@@ -11,12 +36,135 @@ describe("cancellation notification suppression", () => {
     expect(parsed.suppressNotifications).toBe(true);
   });
 
-  it("schemaBookingCancelParams leaves suppressNotifications undefined when absent", () => {
+  it("leaves suppressNotifications undefined when absent", () => {
     const parsed = schemaBookingCancelParams.parse({ uid: "abc123" });
     expect(parsed.suppressNotifications).toBeUndefined();
   });
 
-  it("schemaBookingCancelParams rejects a non-boolean suppressNotifications", () => {
+  it("rejects a non-boolean suppressNotifications", () => {
     expect(() => schemaBookingCancelParams.parse({ uid: "abc123", suppressNotifications: "yes" })).toThrow();
+  });
+});
+
+describe("handleCancelBooking notification suppression", () => {
+  setupAndTeardown();
+
+  test("sends the attendee a cancellation email when notifications are not suppressed", async ({
+    emails,
+  }) => {
+    const handleCancelBooking = (await import("../handleCancelBooking")).default;
+    const organizer = getOrganizer({
+      id: 101,
+      name: "Organizer",
+      email: "organizer@example.com",
+      schedules: [TestData.schedules.IstWorkHours],
+    });
+    const attendeeEmail = "attendee@example.com";
+    const bookingUid = "booking-with-cancellation-email";
+    const { dateString } = getDate({ dateIncrement: 1 });
+
+    await createBookingScenario(
+      getScenarioData({
+        organizer,
+        eventTypes: [{ id: 1, length: 45, users: [{ id: organizer.id }] }],
+        bookings: [
+          {
+            uid: bookingUid,
+            userId: organizer.id,
+            eventTypeId: 1,
+            status: BookingStatus.ACCEPTED,
+            startTime: `${dateString}T05:00:00.000Z`,
+            endTime: `${dateString}T05:45:00.000Z`,
+            attendees: [{ email: attendeeEmail, name: "Attendee", timeZone: "UTC" }],
+          },
+        ],
+      })
+    );
+
+    await handleCancelBooking({
+      body: { uid: bookingUid },
+      userId: organizer.id,
+    } as Parameters<typeof handleCancelBooking>[0]);
+
+    expect(emails.get().some((email) => email.to.includes(attendeeEmail))).toBe(true);
+  });
+
+  test("suppresses cancellation emails without suppressing cancellation cleanup", async ({ emails }) => {
+    const handleCancelBooking = (await import("../handleCancelBooking")).default;
+    vi.mocked(cancelScheduledJobs).mockClear();
+    vi.mocked(deleteScheduledEmailReminder).mockClear();
+    const organizer = getOrganizer({
+      id: 101,
+      name: "Organizer",
+      email: "organizer@example.com",
+      schedules: [TestData.schedules.IstWorkHours],
+      credentials: [getGoogleCalendarCredential()],
+    });
+    const attendeeEmail = "attendee@example.com";
+    const bookingUid = "booking-with-suppressed-cancellation-email";
+    const scheduledJob = "scheduled-job-1";
+    const reminderId = 501;
+    const reminderReferenceId = "workflow-reminder-1";
+    const googleEventId = "google-event-1";
+    const externalCalendarId = "organizer@example.com";
+    const { dateString } = getDate({ dateIncrement: 1 });
+
+    await createBookingScenario(
+      getScenarioData({
+        organizer,
+        eventTypes: [{ id: 1, length: 45, users: [{ id: organizer.id }] }],
+        bookings: [
+          {
+            uid: bookingUid,
+            userId: organizer.id,
+            eventTypeId: 1,
+            status: BookingStatus.ACCEPTED,
+            startTime: `${dateString}T05:00:00.000Z`,
+            endTime: `${dateString}T05:45:00.000Z`,
+            attendees: [{ email: attendeeEmail, name: "Attendee", timeZone: "UTC" }],
+            references: [
+              {
+                type: appStoreMetadata.googlecalendar.type,
+                uid: googleEventId,
+                externalCalendarId,
+              },
+            ],
+          },
+        ],
+        apps: [TestData.apps["google-calendar"]],
+      })
+    );
+    await prismaMock.booking.update({
+      where: { uid: bookingUid },
+      data: { scheduledJobs: [scheduledJob] },
+    });
+    await prismaMock.workflowReminder.create({
+      data: {
+        id: reminderId,
+        bookingUid,
+        method: WorkflowMethods.EMAIL,
+        scheduledDate: new Date(`${dateString}T04:00:00.000Z`),
+        referenceId: reminderReferenceId,
+        scheduled: true,
+      },
+    });
+    const calendarMock = mockCalendar("googlecalendar");
+
+    await handleCancelBooking({
+      body: { uid: bookingUid, suppressNotifications: true },
+      userId: organizer.id,
+    } as Parameters<typeof handleCancelBooking>[0]);
+
+    expect(calendarMock.deleteEventCalls).toHaveLength(1);
+    expect(calendarMock.deleteEventCalls[0]).toEqual([
+      googleEventId,
+      expect.objectContaining({ uid: bookingUid }),
+      externalCalendarId,
+    ]);
+    expect(cancelScheduledJobs).toHaveBeenCalledWith(
+      expect.objectContaining({ uid: bookingUid, scheduledJobs: [scheduledJob] })
+    );
+    expect(deleteScheduledEmailReminder).toHaveBeenCalledWith(reminderId, reminderReferenceId);
+    expect(emails.get()).toHaveLength(0);
   });
 });

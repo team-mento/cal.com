@@ -110,7 +110,7 @@ type InputBooking = {
   endTime: string;
   title?: string;
   status: BookingStatus;
-  attendees?: { email: string }[];
+  attendees?: { email: string; name?: string; timeZone?: string; locale?: string }[];
   references?: {
     type: string;
     uid: string;
@@ -315,6 +315,14 @@ async function addBookings(bookings: InputBooking[]) {
           //@ts-ignore
           createMany: {
             data: booking.references,
+          },
+        };
+      }
+      if (booking.attendees) {
+        bookingCreate.attendees = {
+          // @ts-expect-error Transform the scenario shorthand into Prisma's nested relation input.
+          createMany: {
+            data: booking.attendees,
           },
         };
       }
@@ -839,6 +847,8 @@ export function mockCalendar(
   const createEventCalls: any[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateEventCalls: any[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deleteEventCalls: any[] = [];
   const app = appStoreMetadata[metadataLookupKey as keyof typeof appStoreMetadata];
   appStoreMock.default[appStoreLookupKey as keyof typeof appStoreMock.default].mockResolvedValue({
     lib: {
@@ -888,6 +898,10 @@ export function mockCalendar(
               url: "https://UNUSED_URL",
             });
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          deleteEvent: async function (...rest: any[]): Promise<void> {
+            deleteEventCalls.push(rest);
+          },
           getAvailability: async (): Promise<EventBusyDate[]> => {
             if (calendarData?.getAvailabilityCrash) {
               throw new Error("MockCalendarService.getAvailability fake error");
@@ -903,6 +917,7 @@ export function mockCalendar(
   return {
     createEventCalls,
     updateEventCalls,
+    deleteEventCalls,
   };
 }
 
