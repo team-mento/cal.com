@@ -31,6 +31,61 @@ vi.mock("@calcom/features/ee/workflows/lib/reminders/emailReminderManager", () =
   scheduleEmailReminder: vi.fn(),
 }));
 
+async function createSeatedCancellationScenario({
+  bookingUid,
+  seatReferenceUid,
+}: {
+  bookingUid: string;
+  seatReferenceUid: string;
+}) {
+  const organizer = getOrganizer({
+    id: 101,
+    name: "Organizer",
+    email: "organizer@example.com",
+    schedules: [TestData.schedules.IstWorkHours],
+  });
+  const attendeeEmail = "seat-attendee@example.com";
+  const { dateString } = getDate({ dateIncrement: 1 });
+
+  await createBookingScenario(
+    getScenarioData({
+      organizer,
+      eventTypes: [{ id: 1, length: 45, seatsPerTimeSlot: 3, users: [{ id: organizer.id }] }],
+      bookings: [
+        {
+          uid: bookingUid,
+          userId: organizer.id,
+          eventTypeId: 1,
+          status: BookingStatus.ACCEPTED,
+          startTime: `${dateString}T05:00:00.000Z`,
+          endTime: `${dateString}T05:45:00.000Z`,
+          attendees: [
+            { email: attendeeEmail, name: "Seat Attendee", timeZone: "UTC" },
+            { email: "other-attendee@example.com", name: "Other Attendee", timeZone: "UTC" },
+          ],
+        },
+      ],
+    })
+  );
+
+  const booking = await prismaMock.booking.findUniqueOrThrow({
+    where: { uid: bookingUid },
+    include: { attendees: true },
+  });
+  const attendee = booking.attendees.find(({ email }) => email === attendeeEmail);
+  if (!attendee) throw new Error("Seated cancellation attendee was not created");
+
+  await prismaMock.bookingSeat.create({
+    data: {
+      referenceUid: seatReferenceUid,
+      bookingId: booking.id,
+      attendeeId: attendee.id,
+    },
+  });
+
+  return { attendeeEmail, organizer };
+}
+
 describe("cancellation notification suppression schema", () => {
   it("accepts suppressNotifications", () => {
     const parsed = schemaBookingCancelParams.parse({
@@ -91,6 +146,37 @@ describe("handleCancelBooking notification suppression", () => {
     } as Parameters<typeof handleCancelBooking>[0]);
 
     expect(emails.get().some((email) => email.to.includes(attendeeEmail))).toBe(true);
+  });
+
+  test("sends the removed attendee a seated cancellation email by default", async ({ emails }) => {
+    const handleCancelBooking = (await import("../handleCancelBooking")).default;
+    const bookingUid = "seated-booking-with-cancellation-email";
+    const seatReferenceUid = "seat-with-cancellation-email";
+    const { attendeeEmail, organizer } = await createSeatedCancellationScenario({
+      bookingUid,
+      seatReferenceUid,
+    });
+
+    await handleCancelBooking({
+      body: { uid: bookingUid, seatReferenceUid },
+      userId: organizer.id,
+    } as Parameters<typeof handleCancelBooking>[0]);
+
+    expect(emails.get().some((email) => email.to.includes(attendeeEmail))).toBe(true);
+  });
+
+  test("suppresses the seated cancellation email when notifications are suppressed", async ({ emails }) => {
+    const handleCancelBooking = (await import("../handleCancelBooking")).default;
+    const bookingUid = "seated-booking-with-suppressed-cancellation-email";
+    const seatReferenceUid = "seat-with-suppressed-cancellation-email";
+    const { organizer } = await createSeatedCancellationScenario({ bookingUid, seatReferenceUid });
+
+    await handleCancelBooking({
+      body: { uid: bookingUid, seatReferenceUid, suppressNotifications: true },
+      userId: organizer.id,
+    } as Parameters<typeof handleCancelBooking>[0]);
+
+    expect(emails.get()).toHaveLength(0);
   });
 
   test("suppresses cancellation notifications without suppressing cancellation cleanup", async ({
